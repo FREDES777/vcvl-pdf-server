@@ -1682,7 +1682,7 @@ def desenhar_cards(y):
     return y - card_h - 5*mm
 
 # ── Cabeçalho da tabela principal ──────────────────────────────────────────
-COL_WIDTHS = [22*mm, 20*mm, 40*mm, 20*mm, 28*mm, 28*mm]
+COL_WIDTHS = [32*mm, 18*mm, 32*mm, 18*mm, 28*mm, 30*mm]
 COL_HEADERS = ['Data', 'Concurso', 'Faixa', 'Qtd', 'Vl. Unitario', 'Total']
 
 def desenhar_header_tabela(y):
