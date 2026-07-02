@@ -1686,8 +1686,8 @@ def nova_pagina(primeira=False):
             periodo = 'Data: ' + datas[0]
     c.setFont(_font, 8)
     c.setFillColor(colors.HexColor('#c8e6c9'))
-    c.drawRightString(PW - MARGIN, PH - 17*mm, 'Gerado em: ' + agora)
-    c.drawRightString(PW - MARGIN, PH - 23*mm, periodo)
+    c.drawRightString(PW - MARGIN, PH - 13*mm, 'Gerado em: ' + agora)
+    c.drawRightString(PW - MARGIN, PH - 19*mm, periodo)
     return PH - 32*mm  # y inicial disponivel
 
 def rodape(pag_num, total_pags):
