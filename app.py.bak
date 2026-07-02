@@ -1476,65 +1476,7 @@ c.setFillColor(COR_VERDE)
 c.drawRightString(M + CW - 4*mm, y - 8.5*mm, fmt_brl(total_premio))
 y -= 16*mm
 
-# ── HELPERS DE PAGINACAO ─────────────────────────────────────────────────────
-def desenhar_rodape():
-    c.setFont(_font, 7)
-    c.setFillColor(COR_SUB)
-    c.setStrokeColor(COR_BORDA)
-    c.setLineWidth(0.5)
-    c.line(M, 10*mm, PW - M, 10*mm)
-    c.drawString(M, 7*mm, 'VCVL -- Relatorio gerado automaticamente')
-    c.drawRightString(PW - M, 7*mm, 'Pagina ' + str(c.getPageNumber()))
 
-def nova_pagina():
-    desenhar_rodape()
-    c.showPage()
-    return PH - 20*mm
-
-# ── COMBINACOES PREMIADAS (lista detalhada) ──────────────────────────────────
-if premiadas:
-    if y < 40*mm:
-        y = nova_pagina()
-    c.setFillColor(COR_VERDE)
-    c.rect(M, y - 8*mm, CW, 8*mm, fill=1, stroke=0)
-    c.setFont(_font_bold, 9)
-    c.setFillColor(COR_BRANCO)
-    c.drawString(M + 3*mm, y - 5.5*mm, 'Combinacoes Premiadas -- Detalhamento')
-    y -= 8*mm
-
-    for i, p in enumerate(premiadas):
-        acertos_p = p.get('acertos', 0)
-        numeros_p = p.get('numeros', [])
-        idx_p = p.get('idx', i + 1)
-        nums_txt = '  '.join(str(n).zfill(2) for n in numeros_p)
-
-        if y < 22*mm:
-            y = nova_pagina()
-            c.setFillColor(COR_VERDE)
-            c.rect(M, y - 8*mm, CW, 8*mm, fill=1, stroke=0)
-            c.setFont(_font_bold, 9)
-            c.setFillColor(COR_BRANCO)
-            c.drawString(M + 3*mm, y - 5.5*mm, 'Combinacoes Premiadas -- Detalhamento (continuacao)')
-            y -= 8*mm
-
-        bg = COR_BRANCO if i % 2 == 0 else COR_CINZA
-        c.setFillColor(bg)
-        c.rect(M, y - 7*mm, CW, 7*mm, fill=1, stroke=0)
-
-        c.setFont(_font_bold, 8)
-        c.setFillColor(COR_VERDE)
-        c.drawString(M + 3*mm, y - 4.8*mm, '#' + str(idx_p))
-
-        c.setFont(_font_bold, 8)
-        c.setFillColor(COR_OURO if acertos_p >= 15 else COR_TEXTO)
-        c.drawString(M + 18*mm, y - 4.8*mm, str(acertos_p) + ' acertos')
-
-        c.setFont(_font, 8)
-        c.setFillColor(COR_TEXTO)
-        c.drawString(M + 45*mm, y - 4.8*mm, nums_txt)
-
-        y -= 7*mm
-    y -= 4*mm
 
 # ── GANHADORES POR FAIXA ────────────────────────────────────────────────────────
 if rateios:
@@ -1573,7 +1515,13 @@ if rateios:
     y -= 4*mm
 
 # ── RODAPE ────────────────────────────────────────────────────────────────────
-desenhar_rodape()
+c.setFont(_font, 7)
+c.setFillColor(COR_SUB)
+c.setStrokeColor(COR_BORDA)
+c.setLineWidth(0.5)
+c.line(M, 10*mm, PW - M, 10*mm)
+c.drawString(M, 7*mm, 'VCVL -- Relatorio gerado automaticamente')
+c.drawRightString(PW - M, 7*mm, 'Pagina 1 de 1')
 
 c.save()
 print('OK')
