@@ -1856,14 +1856,10 @@ for h in itens:
     bg = COR_BRANCO if cor_alterna else COR_CINZA
     cor_alterna = not cor_alterna
 
-    sorteados_h = h.get('sorteados') or []
-    sorteados_str = '  '.join(str(n).zfill(2) for n in sorteados_h)
-
     n_linhas = max(len(faixas_h), 1)
     linha_h  = 6*mm
     sub_h    = 6*mm
-    linha_sorteados_h = 5*mm if sorteados_h else 0
-    bloco_h  = n_linhas * linha_h + sub_h + linha_sorteados_h + 1*mm
+    bloco_h  = n_linhas * linha_h + sub_h + 1*mm
 
     # Verificar se cabe na página
     if y - bloco_h < 15*mm:
@@ -1872,12 +1868,6 @@ for h in itens:
         y = nova_pagina()
         y = desenhar_header_tabela(y)
         cor_alterna = True
-
-    if sorteados_h:
-        c.setFont(_font, 6.5)
-        c.setFillColor(COR_SUBTEXTO)
-        c.drawString(MARGIN + 1.5*mm, y - 3.5*mm, 'Dezenas sorteadas: ' + sorteados_str)
-        y -= linha_sorteados_h
 
     if not faixas_h:
         y = desenhar_linha(y, [data_str, num_conc, 'Sem premiacao', '-', '-', 'R$ 0,00'], bg, borda_bottom=True)
