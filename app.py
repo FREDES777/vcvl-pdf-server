@@ -1975,6 +1975,314 @@ c.save()
 print('OK:' + str(len(itens)))
 """
 
+SCRIPTS["resumo_bolao"] = """\
+# -*- coding: utf-8 -*-
+import sys, json, os, datetime
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+_font_paths = [
+    'C:/Windows/Fonts/arial.ttf',
+    'C:/Windows/Fonts/Arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+]
+_font_bold_paths = [
+    'C:/Windows/Fonts/arialbd.ttf',
+    'C:/Windows/Fonts/ArialBD.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+]
+_font = 'Helvetica'
+_font_bold = 'Helvetica-Bold'
+for _fp in _font_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('RBFont', _fp))
+            _font = 'RBFont'
+        except: pass
+        break
+for _fp in _font_bold_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('RBFontBold', _fp))
+            _font_bold = 'RBFontBold'
+        except: pass
+        break
+
+data = json.loads(open(sys.argv[1], encoding='utf-8').read())
+out  = sys.argv[2]
+
+modalidade             = data.get('modalidade', '')
+nome_bolao             = data.get('nome_bolao', '')
+num_concurso_inicio    = data.get('num_concurso_inicio', '')
+concurso_final         = data.get('concurso_final', '')
+teimosinha             = data.get('teimosinha', 0)
+combinacoes            = data.get('combinacoes', [])
+concursos_verificados  = data.get('concursos_verificados', 0)
+concursos_pendentes    = data.get('concursos_pendentes', 0)
+custo_por_concurso     = data.get('custo_por_concurso', 0)
+total_investido        = data.get('total_investido', 0)
+total_premio           = data.get('total_premio', 0)
+resultado_liquido      = data.get('resultado_liquido', 0)
+resultados             = data.get('resultados', [])
+
+NOMES_MOD = {
+    'lotofacil': 'Lotofacil', 'megasena': 'Mega Sena', 'quina': 'Quina',
+    'duplasena': 'Dupla Sena', 'lotomania': 'Lotomania', 'diadesorte': 'Dia de Sorte',
+    'timemania': 'Timemania', 'supersete': 'Super Sete', 'maismilionaria': '+Milionaria',
+}
+nome_mod = NOMES_MOD.get(modalidade, modalidade)
+
+DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
+
+def parse_dia(data_str):
+    try:
+        d, m, a = str(data_str).split('/')
+        dt = datetime.date(int(a), int(m), int(d))
+        return DIAS[(dt.weekday() + 1) % 7]
+    except:
+        return ''
+
+def fmt_brl(v):
+    try:
+        return 'R$ {:,.2f}'.format(float(v)).replace(',','X').replace('.', ',').replace('X','.')
+    except:
+        return 'R$ 0,00'
+
+PW = 210 * mm
+PH = 297 * mm
+MARGIN = 14 * mm
+CONTENT_W = PW - 2 * MARGIN
+
+COR_VERDE          = colors.HexColor('#1b7a1b')
+COR_VERDE_LIGHT    = colors.HexColor('#e8f5e9')
+COR_VERMELHO       = colors.HexColor('#c62828')
+COR_VERMELHO_LIGHT = colors.HexColor('#ffebee')
+COR_LARANJA        = colors.HexColor('#e65100')
+COR_LARANJA_LIGHT  = colors.HexColor('#fff3e0')
+COR_AZUL           = colors.HexColor('#1565c0')
+COR_AZUL_LIGHT     = colors.HexColor('#e3f2fd')
+COR_CINZA          = colors.HexColor('#f5f5f5')
+COR_CINZA_BORDA    = colors.HexColor('#e0e0e0')
+COR_TEXTO          = colors.HexColor('#1a1a1a')
+COR_SUBTEXTO       = colors.HexColor('#757575')
+COR_BRANCO         = colors.white
+COR_ROXO           = colors.HexColor('#6a1b9a')
+
+c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+c.setViewerPreference('PrintScaling', 'None')
+
+pag_atual = [1]
+
+def nova_pagina(primeira=False):
+    if not primeira:
+        c.showPage()
+    c.setFillColor(COR_VERDE)
+    c.rect(0, PH - 28*mm, PW, 28*mm, fill=1, stroke=0)
+    c.setFillColor(colors.HexColor('#2e7d32'))
+    c.rect(0, PH - 30*mm, PW, 2*mm, fill=1, stroke=0)
+    c.setFont(_font_bold, 15)
+    c.setFillColor(COR_BRANCO)
+    c.drawString(MARGIN, PH - 12*mm, nome_bolao or 'Bolao')
+    c.setFont(_font, 9)
+    c.drawString(MARGIN, PH - 19*mm, nome_mod + ' -- Concursos N. ' + str(num_concurso_inicio) + ' ate ' + str(concurso_final) + ' -- Teimosinha ' + str(teimosinha) + 'x')
+    c.setFont(_font, 8)
+    c.setFillColor(colors.HexColor('#c8e6c9'))
+    c.drawRightString(PW - MARGIN, PH - 12*mm, 'Resumo Final do Bolao')
+    c.drawRightString(PW - MARGIN, PH - 19*mm, 'VCVL')
+    return PH - 34*mm
+
+def rodape(pag_num, total_pags):
+    c.setFont(_font, 7)
+    c.setFillColor(COR_SUBTEXTO)
+    c.setStrokeColor(COR_CINZA_BORDA)
+    c.setLineWidth(0.5)
+    c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
+    c.drawString(MARGIN, 7*mm, 'VCVL -- Resumo gerado automaticamente no fechamento do bolao')
+    c.drawRightString(PW - MARGIN, 7*mm, 'Pagina ' + str(pag_num) + ' de ' + str(total_pags))
+
+def quebrar_se_precisar(y, altura_necessaria):
+    if y - altura_necessaria < 15*mm:
+        rodape(pag_atual[0], '?')
+        pag_atual[0] += 1
+        return nova_pagina(), True
+    return y, False
+
+def desenhar_cards(y):
+    card_w = (CONTENT_W - 6*mm) / 3
+    card_h = 17*mm
+    linha1 = [
+        (str(len(combinacoes)), 'Combinacoes', COR_TEXTO, COR_CINZA),
+        (str(concursos_verificados) + ' / ' + str(teimosinha), 'Ja sorteados', COR_AZUL, COR_AZUL_LIGHT),
+        (str(concursos_pendentes), 'Faltam', COR_LARANJA, COR_CINZA),
+    ]
+    cor_resultado = COR_VERDE if resultado_liquido >= 0 else COR_VERMELHO
+    fundo_resultado = COR_VERDE_LIGHT if resultado_liquido >= 0 else COR_VERMELHO_LIGHT
+    linha2 = [
+        (fmt_brl(total_investido), 'Investido ate agora', COR_TEXTO, COR_CINZA),
+        (fmt_brl(total_premio), 'Premios recebidos', COR_LARANJA, COR_LARANJA_LIGHT),
+        (fmt_brl(abs(resultado_liquido)), ('Lucro' if resultado_liquido >= 0 else 'Prejuizo'), cor_resultado, fundo_resultado),
+    ]
+    for linha in (linha1, linha2):
+        for i, (val, lbl, cor_val, fundo) in enumerate(linha):
+            x = MARGIN + i * (card_w + 3*mm)
+            c.setFillColor(fundo)
+            c.roundRect(x, y - card_h, card_w, card_h, 2.5*mm, fill=1, stroke=0)
+            c.setFont(_font, 7)
+            c.setFillColor(COR_SUBTEXTO)
+            c.drawString(x + 3.5*mm, y - 6*mm, lbl)
+            font_sz = 12 if len(val) <= 12 else 10
+            c.setFont(_font_bold, font_sz)
+            c.setFillColor(cor_val)
+            c.drawString(x + 3.5*mm, y - 13*mm, val)
+        y -= card_h + 3*mm
+    return y
+
+def desenhar_combinacoes(y):
+    y, _ = quebrar_se_precisar(y, 12*mm)
+    c.setFillColor(COR_VERDE)
+    c.rect(MARGIN, y - 7*mm, CONTENT_W, 7*mm, fill=1, stroke=0)
+    c.setFont(_font_bold, 9)
+    c.setFillColor(COR_BRANCO)
+    c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Combinacoes do Bolao -- ' + nome_mod + ' -- ' + str(len(combinacoes)) + ' combinacao(oes)')
+    y -= 7*mm
+
+    eh_dia_de_sorte = modalidade == 'diadesorte'
+    col_w = CONTENT_W / 2
+    linha_h = 5*mm
+    i = 0
+    while i < len(combinacoes):
+        if y - linha_h < 15*mm:
+            rodape(pag_atual[0], '?')
+            pag_atual[0] += 1
+            y = nova_pagina()
+        for col in range(2):
+            if i >= len(combinacoes):
+                break
+            combo = combinacoes[i]
+            if eh_dia_de_sorte and isinstance(combo, dict):
+                numeros = combo.get('numeros', [])
+                mes = combo.get('mes')
+            else:
+                numeros = combo
+                mes = None
+            texto = '#' + str(i + 1).zfill(2) + '  ' + '  '.join(str(n).zfill(2) for n in numeros)
+            if mes:
+                texto += '  [Mes ' + str(mes).zfill(2) + ']'
+            x = MARGIN + col * col_w
+            c.setFont(_font, 7.5)
+            c.setFillColor(COR_TEXTO)
+            c.drawString(x + 1.5*mm, y - 3.5*mm, texto)
+            i += 1
+        y -= linha_h
+    return y - 3*mm
+
+def desenhar_concurso(y, r):
+    num_conc = r.get('num_concurso', '')
+    data_conc = r.get('data_concurso', '')
+    dia = parse_dia(data_conc)
+    sorteados = r.get('sorteados') or []
+    premiadas = r.get('premiadas') or []
+    total_faixas = r.get('total_faixas', 0)
+    resultado_concurso = r.get('resultado_concurso', 0)
+    sorteados_str = '  '.join(str(n).zfill(2) for n in sorteados)
+
+    altura_estimada = 28*mm + (len(premiadas) if premiadas else 1) * 5*mm
+    y, _ = quebrar_se_precisar(y, min(altura_estimada, 60*mm))
+
+    c.setFont(_font_bold, 11)
+    c.setFillColor(COR_TEXTO)
+    c.drawString(MARGIN, y - 5*mm, 'Concurso N. ' + str(num_conc))
+    c.setFont(_font, 8)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawString(MARGIN, y - 10*mm, (dia + ' ' if dia else '') + str(data_conc))
+
+    c.setFont(_font, 7)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawRightString(MARGIN + CONTENT_W, y - 4*mm, 'Custo do bolao: ' + fmt_brl(custo_por_concurso))
+    c.setFont(_font_bold, 10)
+    c.setFillColor(COR_LARANJA if total_faixas > 0 else COR_SUBTEXTO)
+    c.drawRightString(MARGIN + CONTENT_W, y - 9*mm, 'Premio: ' + fmt_brl(total_faixas))
+    c.setFont(_font_bold, 8)
+    c.setFillColor(COR_VERDE if resultado_concurso >= 0 else COR_VERMELHO)
+    rotulo = ('Lucro: ' if resultado_concurso >= 0 else 'Prejuizo: ') + fmt_brl(abs(resultado_concurso))
+    c.drawRightString(MARGIN + CONTENT_W, y - 13*mm, rotulo)
+
+    y -= 16*mm
+    c.setFont(_font, 8)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawString(MARGIN, y, 'Sorteio: ' + sorteados_str)
+    y -= 6*mm
+
+    if not premiadas:
+        c.setFont(_font, 8)
+        c.setFillColor(COR_SUBTEXTO)
+        c.drawString(MARGIN, y, 'Nenhuma combinacao premiada neste concurso.')
+        y -= 6*mm
+    else:
+        for p in premiadas:
+            if y < 18*mm:
+                rodape(pag_atual[0], '?')
+                pag_atual[0] += 1
+                y = nova_pagina()
+            idx_p = p.get('idx', '')
+            acertos_p = p.get('acertos', 0)
+            numeros_p = p.get('numeros', [])
+            nums_txt = '  '.join(str(n).zfill(2) for n in numeros_p)
+            c.setFont(_font_bold, 8)
+            c.setFillColor(COR_AZUL)
+            c.drawString(MARGIN, y, str(idx_p).zfill(2) if isinstance(idx_p, int) else str(idx_p))
+            if acertos_p and acertos_p > 0:
+                c.setFont(_font_bold, 8)
+                c.setFillColor(COR_VERDE)
+                c.drawString(MARGIN + 10*mm, y, str(acertos_p) + ' acertos')
+            c.setFont(_font, 8)
+            c.setFillColor(COR_SUBTEXTO)
+            c.drawString(MARGIN + 35*mm, y, nums_txt)
+            if p.get('acertouMes'):
+                c.setFont(_font_bold, 7)
+                c.setFillColor(COR_ROXO)
+                c.drawString(MARGIN + 95*mm, y, 'Mes ' + str(p.get('mes','')).zfill(2) + ' -- acertou!')
+            y -= 5*mm
+
+    c.setStrokeColor(COR_CINZA_BORDA)
+    c.setLineWidth(0.5)
+    c.line(MARGIN, y - 1*mm, MARGIN + CONTENT_W, y - 1*mm)
+    return y - 5*mm
+
+y = nova_pagina(primeira=True)
+y = desenhar_cards(y)
+y -= 2*mm
+y = desenhar_combinacoes(y)
+y -= 2*mm
+
+if resultados:
+    y, _ = quebrar_se_precisar(y, 10*mm)
+    c.setFillColor(COR_VERDE)
+    c.rect(MARGIN, y - 8*mm, CONTENT_W, 8*mm, fill=1, stroke=0)
+    c.setFont(_font_bold, 10)
+    c.setFillColor(COR_BRANCO)
+    c.drawString(MARGIN + 3*mm, y - 5.5*mm, 'Resultado por Concurso')
+    y -= 8*mm
+    for r in resultados:
+        y = desenhar_concurso(y, r)
+else:
+    c.setFont(_font, 9)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawString(MARGIN, y - 6*mm, 'Nenhum concurso conferido neste bolao.')
+    y -= 10*mm
+
+total_pags = pag_atual[0]
+rodape(pag_atual[0], total_pags)
+
+c.save()
+print('OK')
+"""
+
 
 # ── Mapeamento de modalidade → script ─────────────────────────────────────────
 
@@ -2111,6 +2419,47 @@ def historico_pdf():
                 mimetype='application/pdf',
                 as_attachment=True,
                 download_name=f'relatorio-{modalidade}-{data_str}.pdf'
+            )
+        finally:
+            for p in [tmp_json_path, tmp_py_path]:
+                try: os.unlink(p)
+                except: pass
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/resumo-bolao-pdf', methods=['POST'])
+def resumo_bolao_pdf():
+    try:
+        body = request.get_json()
+        if not body:
+            return jsonify({'erro': 'Payload vazio'}), 400
+
+        script_code = SCRIPTS.get('resumo_bolao', '')
+
+        with tempfile.NamedTemporaryFile(suffix='.json', delete=False, mode='w', encoding='utf-8') as tmp_json:
+            json.dump(body, tmp_json, ensure_ascii=False)
+            tmp_json_path = tmp_json.name
+
+        with tempfile.NamedTemporaryFile(suffix='.py', delete=False, mode='w', encoding='utf-8') as tmp_py:
+            tmp_py.write(script_code)
+            tmp_py_path = tmp_py.name
+
+        tmp_pdf_path = tmp_json_path.replace('.json', '.pdf')
+
+        try:
+            result = subprocess.run(
+                [sys.executable, tmp_py_path, tmp_json_path, tmp_pdf_path],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode != 0:
+                return jsonify({'erro': 'Erro ao gerar PDF', 'detalhe': result.stderr}), 500
+
+            return send_file(
+                tmp_pdf_path,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name='resumo-bolao.pdf'
             )
         finally:
             for p in [tmp_json_path, tmp_py_path]:
