@@ -1273,6 +1273,7 @@ sorteados     = concurso.get('sorteados', [])
 acumulado     = concurso.get('acumulado', False)
 valor_proximo = concurso.get('valorProximo', '')
 rateios       = concurso.get('rateios', [])
+horario_envio = data.get('horario_envio', '')
 
 DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
 
@@ -1335,6 +1336,8 @@ c.setFillColor(colors.HexColor('#c8e6c9'))
 c.drawRightString(PW - M, PH - 13*mm, 'Concurso N. ' + str(num_concurso))
 dia_sem = parse_dia(str(data_concurso))
 c.drawRightString(PW - M, PH - 20*mm, 'Data: ' + dia_sem + ' ' + str(data_concurso))
+if horario_envio:
+    c.drawRightString(PW - M, PH - 26*mm, 'Enviado as ' + str(horario_envio))
 
 y = PH - 34*mm
 
