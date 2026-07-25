@@ -2301,6 +2301,24 @@ def get_script_bilhete(modalidade):
 def health():
     return jsonify({'ok': True, 'service': 'vcvl-pdf-server'})
 
+@app.route('/diag-caixa/<modalidade>/<int:numero>', methods=['GET'])
+def diag_caixa(modalidade, numero):
+    # Diagnostico temporario: testa se o IP do Render tambem e bloqueado
+    # pelo WAF da Azion (mesmo bloqueio que afeta o Vercel), ou se serve
+    # como rota alternativa pra buscar resultado da Caixa.
+    import urllib.request, urllib.error
+    url = f'https://servicebus2.caixa.gov.br/portaldeloterias/api/{modalidade}/{numero}'
+    req = urllib.request.Request(url, headers={'Accept': 'application/json'})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            corpo = resp.read().decode('utf-8', errors='replace')
+            return jsonify({'status': resp.status, 'bloqueado': False, 'corpo': corpo[:500]})
+    except urllib.error.HTTPError as e:
+        corpo = e.read().decode('utf-8', errors='replace')
+        return jsonify({'status': e.code, 'bloqueado': e.code == 403, 'corpo': corpo[:500]})
+    except Exception as e:
+        return jsonify({'status': None, 'bloqueado': False, 'erro': str(e)})
+
 @app.route('/bilhete-pdf', methods=['POST'])
 def bilhete_pdf():
     try:
