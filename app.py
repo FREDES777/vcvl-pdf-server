@@ -1215,6 +1215,162 @@ c.save()
 print('OK:' + str(len(combinacoes)))
 """
 
+SCRIPTS["lotofacil_independencia"] = """\
+# -*- coding: utf-8 -*-
+import sys, json
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import os
+
+_font_paths = [
+    'C:/Windows/Fonts/arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+]
+_font_name = 'Helvetica'
+for _fp in _font_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('CustomFont', _fp))
+            _font_name = 'CustomFont'
+        except: pass
+        break
+
+data = json.loads(open(sys.argv[1], encoding='utf-8').read())
+out  = sys.argv[2]
+
+combinacoes  = data['combinacoes']
+offsetX      = data.get('offsetX', 0)
+offsetY      = data.get('offsetY', 0)
+espLinha     = data.get('espLinha', 0)
+colOffset    = data.get('colOffset', [0,0,0,0,0])
+linhaOffset  = data.get('linhaOffset',  [0,0,0,0,0])
+linhaOffset2 = data.get('linhaOffset2', linhaOffset)
+linhaOffset3 = data.get('linhaOffset3', linhaOffset)
+gapJogo12    = data.get('gapJogo12', 0)
+gapJogo23    = data.get('gapJogo23', 0)
+elW          = data.get('elW', 11)
+elH          = data.get('elH', 8)
+resumo       = data.get('resumo', '')
+valor_comb   = data.get('valorCombinacaoUnit', 0)
+tei_mult     = data.get('teimosinhaMult', 1)
+total_pag    = data.get('totalPaginas', 1)
+pagina_inicio = data.get('paginaInicio', 0)
+dez_por_aposta = data.get('dezPorAposta', 15)
+mdz_pos_x      = data.get('mdzPosX', [0, 42, 86, 132, 178, 222])
+mdz_offset_x   = data.get('mdzOffsetX', 0)
+mdz_offset_y   = data.get('mdzOffsetY', 0)
+teimosinha   = data.get('teimosinha', 0)
+tei_pos_x    = data.get('teiPosX', [0, 88, 178, 268, 357])
+spr_offset_x = data.get('sprOffsetX', 0)
+spr_offset_y = data.get('sprOffsetY', 0)
+header_color_hex = data.get('headerColor', '#1b5e20')
+def hex_to_rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2],16)/255 for i in (0,2,4))
+hdr_r, hdr_g, hdr_b = hex_to_rgb(header_color_hex)
+
+PW = 82.0 * mm
+PH = 186.0 * mm
+SCALE = mm / (578 / 82.0)
+
+BOLHAS = {
+  1:(322,243),2:(322,273),3:(322,300),4:(322,326),5:(322,353),
+  6:(283,243),7:(283,273),8:(283,300),9:(283,326),10:(283,353),
+  11:(245,243),12:(245,273),13:(245,300),14:(245,326),15:(245,353),
+  16:(210,243),17:(210,273),18:(210,300),19:(210,326),20:(210,353),
+  21:(103,243),22:(103,273),23:(103,300),24:(103,326),25:(103,353),
+}
+DEZ_COL = {1:0,2:0,3:0,4:0,5:0,6:1,7:1,8:1,9:1,10:1,
+           11:2,12:2,13:2,14:2,15:2,16:3,17:3,18:3,19:3,20:3,
+           21:4,22:4,23:4,24:4,25:4}
+DEZ_LIN = {1:0,6:0,11:0,16:0,21:0,2:1,7:1,12:1,17:1,22:1,
+           3:2,8:2,13:2,18:2,23:2,4:3,9:3,14:3,19:3,24:3,
+           5:4,10:4,15:4,20:4,25:4}
+JOGO2 = 179; JOGO3 = 328
+
+def jogo_oy(j):
+    if j==1: return 0
+    if j==2: return JOGO2 + gapJogo12
+    return JOGO3 + gapJogo23
+
+COMBOS_POR_PAG = 3
+c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+c.setViewerPreference('PrintScaling', 'None')
+
+for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
+    if pg > 0: c.showPage()
+    combos_pag = combinacoes[pg:pg+COMBOS_POR_PAG]
+
+    if resumo:
+        c.setFont(_font_name, 10)
+        c.setFillColorRGB(hdr_r, hdr_g, hdr_b)
+        pg_num = pagina_inicio + pg//COMBOS_POR_PAG + 1
+        n_jogos = len(combos_pag)
+        valor_bilhete = valor_comb * n_jogos * tei_mult
+        def fmt_brl(v):
+            return 'R$ {:,.2f}'.format(v).replace(',','X').replace('.', ',').replace('X','.')
+        base_idx = pagina_inicio + pg // COMBOS_POR_PAG
+        nums_pag = [str(base_idx * COMBOS_POR_PAG + i + 1).zfill(2) for i in range(n_jogos)]
+        if len(nums_pag) == 1:
+            comb_txt = 'Combinacao: ' + nums_pag[0]
+        else:
+            comb_txt = 'Combinacoes: ' + ', '.join(nums_pag[:-1]) + ' e ' + nums_pag[-1]
+        linhas_resumo = resumo.replace('[POR_BILHETE]', fmt_brl(valor_bilhete)).split('|')
+        linhas_resumo.append(comb_txt)
+        margem_x = 7.1 * mm
+        linha_h  = 3.5 * mm
+        y_inicio = PH - 19.4*mm
+        for li, linha in enumerate(linhas_resumo):
+            c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
+        txt_bil = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
+        c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, txt_bil)
+
+    c.setFillColorRGB(0,0,0)
+    for j_idx, combo in enumerate(combos_pag):
+        jogo = j_idx + 1
+        oy_jogo = jogo_oy(jogo)
+        for dez in combo:
+            bx, by = BOLHAS[dez]
+            col_idx = DEZ_COL[dez]
+            lin_idx = DEZ_LIN[dez]
+            cx_px = bx + offsetX + colOffset[col_idx]
+            lo = linhaOffset if jogo == 1 else (linhaOffset2 if jogo == 2 else linhaOffset3)
+            cy_px = by + oy_jogo + offsetY + lin_idx * espLinha + lo[lin_idx]
+            cx_pt = cx_px * SCALE
+            cy_pt = PH - cy_px * SCALE
+            rw = (elW/2) * SCALE
+            rh = (elH/2) * SCALE
+            c.ellipse(cx_pt-rw, cy_pt-rh, cx_pt+rw, cy_pt+rh, fill=1, stroke=0)
+
+    rw = (elW/2) * SCALE
+    rh = (elH/2) * SCALE
+    ultima_linha_py = BOLHAS[25][1]
+    jogo3_oy = jogo_oy(3)
+
+    mdz_idx = dez_por_aposta - 15
+    if 0 <= mdz_idx < len(mdz_pos_x):
+        mdz_base_x = 103 + offsetX + colOffset[4] + mdz_offset_x + mdz_pos_x[mdz_idx]
+        mdz_base_y = ultima_linha_py + jogo3_oy + offsetY + 40 + mdz_offset_y
+        cx_pt = mdz_base_x * SCALE
+        cy_pt = PH - mdz_base_y * SCALE
+        c.ellipse(cx_pt-rw, cy_pt-rh, cx_pt+rw, cy_pt+rh, fill=1, stroke=0)
+
+    tei_opcoes = [3, 6, 12, 18, 24]
+    if teimosinha > 0 and teimosinha in tei_opcoes:
+        tei_idx = tei_opcoes.index(teimosinha)
+        tei_base_x = 103 + offsetX + colOffset[4] + spr_offset_x + tei_pos_x[tei_idx]
+        tei_base_y = ultima_linha_py + jogo3_oy + offsetY + 40 + spr_offset_y
+        cx_pt = tei_base_x * SCALE
+        cy_pt = PH - tei_base_y * SCALE
+        c.ellipse(cx_pt-rw, cy_pt-rh, cx_pt+rw, cy_pt+rh, fill=1, stroke=0)
+
+c.save()
+print('OK:' + str(len(combinacoes)))
+"""
+
 SCRIPTS["conferencia"] = """\
 # -*- coding: utf-8 -*-
 import sys, json, os
