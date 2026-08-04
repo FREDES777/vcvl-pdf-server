@@ -1371,6 +1371,139 @@ c.save()
 print('OK:' + str(len(combinacoes)))
 """
 
+SCRIPTS["bilhete_dinamico"] = """\
+# -*- coding: utf-8 -*-
+# Script generico para bilhetes especiais cadastrados via calibracao assistida
+# (upload de foto + ajuste fino pelo proprio usuario) em vez de um script
+# hardcoded por modalidade. A largura da pagina (PW) vem fixa do template
+# (papel do bilhete, ex. Envelope Monarck); a altura (PH) e sempre calculada
+# a partir da grade, nunca hardcoded.
+import sys, json, os
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+_font_paths = [
+    'C:/Windows/Fonts/arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+]
+_font_name = 'Helvetica'
+for _fp in _font_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('CustomFont', _fp))
+            _font_name = 'CustomFont'
+        except: pass
+        break
+
+data = json.loads(open(sys.argv[1], encoding='utf-8').read())
+out  = sys.argv[2]
+
+combinacoes = data['combinacoes']
+template    = data.get('template', {}) or {}
+grade       = template.get('gradeConfig', {}) or {}
+calib       = template.get('calibracao', {}) or {}
+largura_mm  = float(template.get('larguraMm', 80.0))
+
+colunas           = int(grade.get('colunas', 10))
+linhas            = int(grade.get('linhas', 6))
+jogos_por_bilhete = int(grade.get('jogosPorBilhete', 1))
+combo_por_pag     = int(grade.get('comboPorPagina', jogos_por_bilhete))
+start_x           = float(grade.get('startX', 100))
+start_y           = float(grade.get('startY', 220))
+col_sp            = float(grade.get('colSpacing', 40))
+lin_sp            = float(grade.get('linSpacing', 25))
+gap_jogo          = float(grade.get('gapEntreJogos', 220))
+margem_inferior   = float(grade.get('margemInferior', 40))
+margem_topo       = float(grade.get('margemTopo', 0))
+ordem             = grade.get('ordem', 'linha')  # 'linha' (varre colunas primeiro) ou 'coluna' (varre linhas primeiro)
+img_largura_px    = float(grade.get('imgLarguraPx', 578))
+
+offset_x      = float(calib.get('offsetX', 0))
+offset_y      = float(calib.get('offsetY', 0))
+col_offsets   = calib.get('colOffsets') or [0] * colunas
+lin_offsets   = calib.get('linOffsets') or [0] * linhas
+gaps_por_jogo = calib.get('gapsPorJogo') or [0] * jogos_por_bilhete
+elW           = float(calib.get('elW', 10))
+elH           = float(calib.get('elH', 9))
+header_color_hex = calib.get('corCabecalho', '#333333')
+
+def hex_to_rgb(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i+2], 16) / 255 for i in (0, 2, 4))
+hdr_r, hdr_g, hdr_b = hex_to_rgb(header_color_hex)
+
+resumo         = data.get('resumo', '')
+valor_comb     = data.get('valorCombinacaoUnit', 0)
+tei_mult       = data.get('teimosinhaMult', 1)
+total_pag      = data.get('totalPaginas', 1)
+pagina_inicio  = data.get('paginaInicio', 0)
+
+def get_col(dez):
+    idx = dez - 1
+    return (idx // linhas) if ordem == 'coluna' else (idx % colunas)
+
+def get_lin(dez):
+    idx = dez - 1
+    return (idx % linhas) if ordem == 'coluna' else (idx // colunas)
+
+def jogo_oy(j):
+    extra = gaps_por_jogo[j - 1] if (j - 1) < len(gaps_por_jogo) else 0
+    return (j - 1) * gap_jogo + extra
+
+SCALE = mm / (img_largura_px / largura_mm)
+PW = largura_mm * mm
+altura_grade_px = start_y + margem_topo + jogo_oy(jogos_por_bilhete) + (linhas - 1) * lin_sp + margem_inferior
+PH = altura_grade_px * SCALE
+
+COMBOS_POR_PAG = max(1, combo_por_pag)
+c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+c.setViewerPreference('PrintScaling', 'None')
+
+for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
+    if pg > 0: c.showPage()
+    combos_pag = combinacoes[pg:pg + COMBOS_POR_PAG]
+
+    if resumo:
+        c.setFont(_font_name, 10)
+        c.setFillColorRGB(hdr_r, hdr_g, hdr_b)
+        n_jogos = len(combos_pag)
+        valor_bilhete = valor_comb * n_jogos * tei_mult
+        def fmt_brl(v):
+            return 'R$ {:,.2f}'.format(v).replace(',', 'X').replace('.', ',').replace('X', '.')
+        base_idx = pagina_inicio + pg // COMBOS_POR_PAG
+        nums_pag = [str(base_idx * COMBOS_POR_PAG + i + 1).zfill(2) for i in range(n_jogos)]
+        comb_txt = ('Combinacao: ' + nums_pag[0]) if len(nums_pag) == 1 else ('Combinacoes: ' + ' e '.join(nums_pag))
+        linhas_resumo = resumo.replace('[POR_BILHETE]', fmt_brl(valor_bilhete)).split('|')
+        linhas_resumo.append(comb_txt)
+        margem_x = 7.0 * mm
+        linha_h  = 4.0 * mm
+        y_inicio = PH - 12.0 * mm
+        for li, linha_txt in enumerate(linhas_resumo):
+            c.drawString(margem_x, y_inicio - li * linha_h, linha_txt.strip())
+
+    c.setFillColorRGB(0, 0, 0)
+    rw = (elW / 2) * SCALE; rh = (elH / 2) * SCALE
+    for j_idx, combo in enumerate(combos_pag):
+        jogo = j_idx + 1
+        oy = jogo_oy(jogo)
+        for dez in combo:
+            col = get_col(dez)
+            lin = get_lin(dez)
+            co = col_offsets[col] if col < len(col_offsets) else 0
+            lo = lin_offsets[lin] if lin < len(lin_offsets) else 0
+            cx_px = start_x + col * col_sp + offset_x + co
+            cy_px = start_y + margem_topo + oy + lin * lin_sp + offset_y + lo
+            cx_pt = cx_px * SCALE
+            cy_pt = PH - cy_px * SCALE
+            c.ellipse(cx_pt - rw, cy_pt - rh, cx_pt + rw, cy_pt + rh, fill=1, stroke=0)
+
+c.save()
+print('OK:' + str(len(combinacoes)))
+"""
+
 SCRIPTS["conferencia"] = """\
 # -*- coding: utf-8 -*-
 import sys, json, os
