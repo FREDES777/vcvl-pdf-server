@@ -2576,15 +2576,17 @@ def valor_bonus_extra(faixas):
             return f.get('valor_unitario', 0) or 0
     return 0
 
-def calcular_premiacao_por_combinacao(resultados):
-    # Soma, por combinacao (idx), o valor ganho em cada concurso da
-    # teimosinha em que ela foi premiada -- reconstruido a partir de
-    # faixas/premiadas de cada concurso ja conferido (nao depende de um
-    # campo "premio" individual salvo no banco, entao funciona tambem pra
-    # boloes antigos ja concluidos).
+def calcular_premiacao_detalhada_por_combinacao(resultados):
+    # Por combinacao (idx), lista cada concurso em que ela foi premiada com
+    # faixa e valor individuais (nao so o total agregado) -- reconstruido a
+    # partir de faixas/premiadas de cada concurso ja conferido (nao depende
+    # de um campo "premio" salvo no banco, entao funciona tambem pra boloes
+    # antigos ja concluidos).
     por_combo = {}
     for r in (resultados or []):
         faixas_r = r.get('faixas') or []
+        num_conc = r.get('num_concurso')
+        data_conc = r.get('data_concurso')
         for p in (r.get('premiadas') or []):
             idx = p.get('idx')
             if idx is None:
@@ -2592,62 +2594,125 @@ def calcular_premiacao_por_combinacao(resultados):
             acertos = p.get('acertos')
             trevos = p.get('acertosTrevos') if 'acertosTrevos' in p else None
             valor = valor_faixa_premiada(faixas_r, acertos, trevos)
-            if p.get('acertouMes') or p.get('acertouTime'):
+            bonus = bool(p.get('acertouMes') or p.get('acertouTime'))
+            if bonus:
                 valor += valor_bonus_extra(faixas_r)
             if valor <= 0:
                 continue
-            entry = por_combo.setdefault(idx, {'total': 0.0, 'concursos': []})
+            entry = por_combo.setdefault(idx, {'total': 0.0, 'linhas': []})
             entry['total'] += valor
-            entry['concursos'].append(r.get('num_concurso'))
+            entry['linhas'].append({
+                'concurso': num_conc, 'data': data_conc,
+                'acertos': acertos, 'trevos': trevos,
+                'valor': valor, 'bonus': bonus,
+            })
+    for info in por_combo.values():
+        info['linhas'].sort(key=lambda l: l['concurso'])
     return por_combo
 
-def desenhar_premiacao_por_combinacao(y, por_combo):
-    itens = sorted(por_combo.items(), key=lambda kv: kv[0])
-    if not itens:
+# Jogos por bilhete fisico, mesma convencao usada nas telas de impressao de
+# bilhete visual do frontend (COMBOS_POR_PAGINA em cada
+# ImpressaoBilheteVisual*.tsx) -- usada aqui so pra agrupar a premiacao,
+# sem nenhuma outra dependencia daquele modulo.
+JOGOS_POR_BILHETE = {
+    'lotofacil': 3, 'megasena': 3, 'quina': 3, 'duplasena': 3,
+    'diadesorte': 3, 'lotomania': 2, 'maismilionaria': 2,
+    'timemania': 1, 'supersete': 1,
+}
+
+def agrupar_em_bilhetes(por_combo, modalidade, total_combinacoes):
+    tam = JOGOS_POR_BILHETE.get(modalidade, 3)
+    bilhetes = []
+    if not total_combinacoes:
+        return bilhetes
+    n_bilhetes = -(-total_combinacoes // tam)
+    for b in range(n_bilhetes):
+        inicio = b * tam + 1
+        fim = min(inicio + tam - 1, total_combinacoes)
+        combos_bilhete = [(idx, por_combo[idx]) for idx in range(inicio, fim + 1) if idx in por_combo]
+        if combos_bilhete:
+            total_bilhete = sum(info['total'] for _, info in combos_bilhete)
+            bilhetes.append({'numero': b + 1, 'inicio': inicio, 'fim': fim, 'combos': combos_bilhete, 'total': total_bilhete})
+    return bilhetes
+
+def formatar_faixa(acertos, trevos):
+    if acertos is None:
+        return ''
+    txt = str(acertos) + ' acertos'
+    if trevos is not None:
+        txt += ' + ' + str(trevos) + ' trevo(s)'
+    return txt
+
+def desenhar_premiacao_por_bilhete(y, bilhetes):
+    if not bilhetes:
         return y
+
+    total_geral = sum(b['total'] for b in bilhetes)
 
     y, _ = quebrar_se_precisar(y, 10*mm)
     c.setFillColor(COR_ROXO)
     c.rect(MARGIN, y - 8*mm, CONTENT_W, 8*mm, fill=1, stroke=0)
     c.setFont(_font_bold, 10)
     c.setFillColor(COR_BRANCO)
-    c.drawString(MARGIN + 3*mm, y - 5.5*mm, 'Premiacao Total por Combinacao -- ' + str(len(itens)) + ' combinacao(oes) premiada(s) na teimosinha')
+    c.drawString(MARGIN + 3*mm, y - 5.5*mm, 'Premiacao por Bilhete -- ' + str(len(bilhetes)) + ' bilhete(s) premiado(s) na teimosinha')
     y -= 8*mm
 
-    total_geral = sum(v['total'] for _, v in itens)
-
-    for idx, info in itens:
-        concursos_str = ', '.join(str(n) for n in sorted(info['concursos']))
-        linhas_conc = quebrar_texto('Concursos premiados: ' + concursos_str, CONTENT_W - 45*mm, _font, 7.5)
-        altura_bloco = 5*mm + max(0, len(linhas_conc) - 1) * 3.8*mm + 3*mm
-
-        y, _ = quebrar_se_precisar(y, altura_bloco)
-
-        c.setFont(_font_bold, 9)
+    for b in bilhetes:
+        y, _ = quebrar_se_precisar(y, 13*mm)
+        c.setFillColor(COR_AZUL_LIGHT)
+        c.rect(MARGIN, y - 7*mm, CONTENT_W, 7*mm, fill=1, stroke=0)
+        c.setFont(_font_bold, 9.5)
         c.setFillColor(COR_AZUL)
-        c.drawString(MARGIN, y - 4*mm, '#' + str(idx).zfill(2))
-
-        c.setFont(_font, 7.5)
-        c.setFillColor(COR_SUBTEXTO)
-        yc = y - 4*mm
-        for linha in linhas_conc:
-            c.drawString(MARGIN + 14*mm, yc, linha)
-            yc -= 3.8*mm
-
-        c.setFont(_font_bold, 9)
+        faixa_idx = '#' + str(b['inicio']).zfill(2) if b['inicio'] == b['fim'] else '#' + str(b['inicio']).zfill(2) + ' a #' + str(b['fim']).zfill(2)
+        c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Bilhete ' + str(b['numero']) + ' -- combinacoes ' + faixa_idx)
+        c.setFont(_font_bold, 9.5)
         c.setFillColor(COR_LARANJA)
-        c.drawRightString(MARGIN + CONTENT_W, y - 4*mm, fmt_brl(info['total']))
+        c.drawRightString(MARGIN + CONTENT_W - 2*mm, y - 4.8*mm, 'Total do bilhete: ' + fmt_brl(b['total']))
+        y -= 8*mm
 
-        y -= altura_bloco
+        for idx, info in b['combos']:
+            y, _ = quebrar_se_precisar(y, 6*mm)
+            c.setFont(_font_bold, 8.5)
+            c.setFillColor(COR_TEXTO)
+            c.drawString(MARGIN + 3*mm, y - 4*mm, '#' + str(idx).zfill(2))
+            c.setFont(_font, 7.5)
+            c.setFillColor(COR_SUBTEXTO)
+            c.drawRightString(MARGIN + CONTENT_W - 2*mm, y - 4*mm, 'Subtotal da combinacao: ' + fmt_brl(info['total']))
+            y -= 5*mm
+
+            for linha in info['linhas']:
+                y, _ = quebrar_se_precisar(y, 5*mm)
+                dia = parse_dia(linha.get('data'))
+                c.setFont(_font, 7.5)
+                c.setFillColor(COR_SUBTEXTO)
+                txt_conc = 'Concurso ' + str(linha['concurso']) + ((' -- ' + dia + ' ' + str(linha['data'])) if linha.get('data') else '')
+                c.drawString(MARGIN + 8*mm, y - 3.5*mm, txt_conc)
+                c.setFont(_font_bold, 7.5)
+                c.setFillColor(COR_VERDE)
+                faixa_txt = formatar_faixa(linha['acertos'], linha.get('trevos'))
+                if linha.get('bonus'):
+                    faixa_txt += ' + bonus'
+                c.drawString(MARGIN + 75*mm, y - 3.5*mm, faixa_txt)
+                c.setFont(_font_bold, 7.5)
+                c.setFillColor(COR_LARANJA)
+                c.drawRightString(MARGIN + CONTENT_W - 2*mm, y - 3.5*mm, fmt_brl(linha['valor']))
+                y -= 4.3*mm
+            y -= 1.5*mm
+
         c.setStrokeColor(COR_CINZA_BORDA)
-        c.setLineWidth(0.3)
-        c.line(MARGIN, y + 2*mm, MARGIN + CONTENT_W, y + 2*mm)
+        c.setLineWidth(0.5)
+        c.line(MARGIN, y, MARGIN + CONTENT_W, y)
+        y -= 4*mm
 
-    y, _ = quebrar_se_precisar(y, 9*mm)
-    c.setFont(_font_bold, 9)
-    c.setFillColor(COR_TEXTO)
-    c.drawString(MARGIN, y - 5*mm, 'Total geral premiado (todas as combinacoes, todos os concursos): ' + fmt_brl(total_geral))
-    y -= 9*mm
+    y, _ = quebrar_se_precisar(y, 15*mm)
+    c.setFillColor(COR_VERDE)
+    c.roundRect(MARGIN, y - 12*mm, CONTENT_W, 12*mm, 2.5*mm, fill=1, stroke=0)
+    c.setFont(_font_bold, 12)
+    c.setFillColor(COR_BRANCO)
+    c.drawString(MARGIN + 4*mm, y - 8*mm, 'TOTAL GERAL DA PREMIACAO (todos os bilhetes)')
+    c.setFont(_font_bold, 14)
+    c.drawRightString(MARGIN + CONTENT_W - 4*mm, y - 8*mm, fmt_brl(total_geral))
+    y -= 15*mm
     return y
 
 y = nova_pagina(primeira=True)
@@ -2672,12 +2737,13 @@ else:
     c.drawString(MARGIN, y - 6*mm, 'Nenhum concurso conferido neste bolao.')
     y -= 10*mm
 
-premiacao_por_combo = calcular_premiacao_por_combinacao(resultados)
-if premiacao_por_combo:
+premiacao_por_combo = calcular_premiacao_detalhada_por_combinacao(resultados)
+bilhetes = agrupar_em_bilhetes(premiacao_por_combo, modalidade, len(combinacoes))
+if bilhetes:
     rodape(pag_atual[0], '?')
     pag_atual[0] += 1
     y = nova_pagina()
-    y = desenhar_premiacao_por_combinacao(y, premiacao_por_combo)
+    y = desenhar_premiacao_por_bilhete(y, bilhetes)
 
 total_pags = pag_atual[0]
 rodape(pag_atual[0], total_pags)
