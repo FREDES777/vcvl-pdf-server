@@ -2805,6 +2805,8 @@ valor_pagantes      = data.get('valor_pagantes', 0)
 valor_bruto_anterior = data.get('valor_bruto_anterior', 0)
 diferenca           = data.get('diferenca', 0)
 parcela_por_pessoa  = data.get('parcela_por_pessoa', 0)
+lotericas           = data.get('lotericas') or ''
+chave_pix           = data.get('chave_pix') or ''
 
 def fmt_brl(v):
     try:
@@ -2951,6 +2953,40 @@ for j, linha in enumerate(quebrar_texto(rotulo_final, CONTENT_W - 10*mm, _font_b
 c.setFont(_font_bold, 20)
 c.drawString(MARGIN + 5*mm, y - 21*mm, fmt_brl(abs(parcela_por_pessoa)))
 y -= 26*mm + 8*mm
+
+if lotericas or chave_pix:
+    c.setFillColor(COR_ROXO)
+    c.rect(MARGIN, y - 7*mm, CONTENT_W, 7*mm, fill=1, stroke=0)
+    c.setFont(_font_bold, 9)
+    c.setFillColor(COR_BRANCO)
+    c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Onde registrar e como pagar o próximo bolão')
+    y -= 7*mm + 6*mm
+
+    if lotericas:
+        c.setFont(_font_bold, 8.5)
+        c.setFillColor(COR_TEXTO)
+        c.drawString(MARGIN, y, 'Lotérica responsável:')
+        y -= 4.8*mm
+        c.setFont(_font, 9)
+        c.setFillColor(COR_SUBTEXTO)
+        for linha in quebrar_texto(lotericas, CONTENT_W, _font, 9):
+            c.drawString(MARGIN, y, linha)
+            y -= 4.6*mm
+        y -= 3*mm
+
+    if chave_pix:
+        c.setFont(_font_bold, 8.5)
+        c.setFillColor(COR_TEXTO)
+        c.drawString(MARGIN, y, 'Chave PIX para pagar a parcela:')
+        y -= 4.8*mm
+        c.setFont(_font, 9)
+        c.setFillColor(COR_SUBTEXTO)
+        for linha in quebrar_texto(chave_pix, CONTENT_W, _font, 9):
+            c.drawString(MARGIN, y, linha)
+            y -= 4.6*mm
+        y -= 3*mm
+
+    y -= 4*mm
 
 nota = ('Essa previsão vale caso o grupo decida continuar com o bolão, com o mesmo número de ' +
         'participantes. Se alguém desistir ou entrar um novo participante, o valor da parcela de ' +
