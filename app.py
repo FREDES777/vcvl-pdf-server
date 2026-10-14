@@ -2752,6 +2752,227 @@ c.save()
 print('OK')
 """
 
+SCRIPTS["proximo_bolao"] = """\
+# -*- coding: utf-8 -*-
+import sys, json, os
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+_font_paths = [
+    'C:/Windows/Fonts/arial.ttf',
+    'C:/Windows/Fonts/Arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+]
+_font_bold_paths = [
+    'C:/Windows/Fonts/arialbd.ttf',
+    'C:/Windows/Fonts/ArialBD.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+]
+_font = 'Helvetica'
+_font_bold = 'Helvetica-Bold'
+for _fp in _font_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('RBFont', _fp))
+            _font = 'RBFont'
+        except: pass
+        break
+for _fp in _font_bold_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('RBFontBold', _fp))
+            _font_bold = 'RBFontBold'
+        except: pass
+        break
+
+data = json.loads(open(sys.argv[1], encoding='utf-8').read())
+out  = sys.argv[2]
+
+titulo              = data.get('titulo', 'Próximo Bolão')
+modalidade          = data.get('modalidade', '')
+nome_bolao_atual     = data.get('nome_bolao_atual', '')
+num_participantes   = data.get('num_participantes', 25)
+num_pagantes        = data.get('num_pagantes', 24)
+organizador_paga    = data.get('organizador_paga', False)
+total_premio        = data.get('total_premio', 0)
+quociente           = data.get('quociente', 0)
+valor_pagantes      = data.get('valor_pagantes', 0)
+valor_bruto_anterior = data.get('valor_bruto_anterior', 0)
+diferenca           = data.get('diferenca', 0)
+parcela_por_pessoa  = data.get('parcela_por_pessoa', 0)
+
+def fmt_brl(v):
+    try:
+        return 'R$ {:,.2f}'.format(float(v)).replace(',','X').replace('.', ',').replace('X','.')
+    except:
+        return 'R$ 0,00'
+
+PW = 210 * mm
+PH = 297 * mm
+MARGIN = 14 * mm
+CONTENT_W = PW - 2 * MARGIN
+
+COR_ROXO           = colors.HexColor('#6a1b9a')
+COR_ROXO_LIGHT      = colors.HexColor('#f3e5f5')
+COR_VERDE          = colors.HexColor('#1b7a1b')
+COR_VERDE_LIGHT    = colors.HexColor('#e8f5e9')
+COR_VERMELHO       = colors.HexColor('#c62828')
+COR_VERMELHO_LIGHT = colors.HexColor('#ffebee')
+COR_CINZA          = colors.HexColor('#f5f5f5')
+COR_CINZA_BORDA    = colors.HexColor('#e0e0e0')
+COR_TEXTO          = colors.HexColor('#1a1a1a')
+COR_SUBTEXTO       = colors.HexColor('#757575')
+COR_BRANCO         = colors.white
+
+c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+c.setViewerPreference('PrintScaling', 'None')
+
+c.setFillColor(COR_ROXO)
+c.rect(0, PH - 30*mm, PW, 30*mm, fill=1, stroke=0)
+c.setFont(_font_bold, 17)
+c.setFillColor(COR_BRANCO)
+c.drawString(MARGIN, PH - 13*mm, titulo)
+c.setFont(_font, 9.5)
+c.drawString(MARGIN, PH - 21*mm, 'Previsão da parcela de cada participante para o próximo bolão')
+c.setFont(_font, 8)
+c.setFillColor(colors.HexColor('#e1bee7'))
+c.drawRightString(PW - MARGIN, PH - 13*mm, 'VCVL')
+c.drawRightString(PW - MARGIN, PH - 21*mm, modalidade)
+
+y = PH - 40*mm
+
+def quebrar_texto(texto, largura_max, fonte, tamanho):
+    palavras = texto.split(' ')
+    linhas = []
+    atual = ''
+    for p in palavras:
+        teste = (atual + ' ' + p).strip()
+        if not atual or c.stringWidth(teste, fonte, tamanho) <= largura_max:
+            atual = teste
+        else:
+            linhas.append(atual)
+            atual = p
+    if atual:
+        linhas.append(atual)
+    return linhas
+
+intro = ('Com base no resultado do bolão "' + (nome_bolao_atual or '') + '", que acabou de chegar ao fim da ' +
+         'teimosinha, segue abaixo o cálculo do valor que cada participante pagante deverá contribuir ' +
+         'para o próximo bolão -- assim o grupo já fica sabendo o valor da parcela, caso ninguém desista ' +
+         'e o número de participantes continue o mesmo.')
+c.setFont(_font, 9.5)
+c.setFillColor(COR_TEXTO)
+for linha in quebrar_texto(intro, CONTENT_W, _font, 9.5):
+    c.drawString(MARGIN, y, linha)
+    y -= 4.8*mm
+y -= 4*mm
+
+# Cards de destaque
+card_w = (CONTENT_W - 6*mm) / 3
+card_h = 20*mm
+cor_dif = COR_VERMELHO if diferenca > 0 else COR_VERDE
+fundo_dif = COR_VERMELHO_LIGHT if diferenca > 0 else COR_VERDE_LIGHT
+cards = [
+    (fmt_brl(total_premio), 'Prêmio recebido no bolão', COR_TEXTO, COR_CINZA),
+    (fmt_brl(valor_bruto_anterior), 'Valor bruto do bolão anterior', COR_TEXTO, COR_CINZA),
+    (fmt_brl(abs(diferenca)), ('Falta cobrir' if diferenca > 0 else 'Crédito do grupo'), cor_dif, fundo_dif),
+]
+for i, (val, lbl, cor_val, fundo) in enumerate(cards):
+    x = MARGIN + i * (card_w + 3*mm)
+    c.setFillColor(fundo)
+    c.roundRect(x, y - card_h, card_w, card_h, 2.5*mm, fill=1, stroke=0)
+    c.setFont(_font, 7.5)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawString(x + 3.5*mm, y - 7*mm, lbl)
+    c.setFont(_font_bold, 13)
+    c.setFillColor(cor_val)
+    c.drawString(x + 3.5*mm, y - 15*mm, val)
+y -= card_h + 10*mm
+
+# Passo a passo do calculo
+c.setFillColor(COR_ROXO)
+c.rect(MARGIN, y - 7*mm, CONTENT_W, 7*mm, fill=1, stroke=0)
+c.setFont(_font_bold, 9)
+c.setFillColor(COR_BRANCO)
+c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Como chegamos nesse valor')
+y -= 7*mm + 6*mm
+
+situacao_realizador = ('o realizador também paga sua parcela' if organizador_paga else
+                        'o realizador NÃO paga -- o rateio é dividido só entre os demais participantes')
+texto_grupo = ('Participantes do grupo: ' + str(num_participantes) + ' no total -- ' + situacao_realizador + '.')
+c.setFont(_font, 8.5)
+c.setFillColor(COR_SUBTEXTO)
+for linha in quebrar_texto(texto_grupo, CONTENT_W, _font, 8.5):
+    c.drawString(MARGIN, y, linha)
+    y -= 4.4*mm
+y -= 3*mm
+
+passos = [
+    ('1. Prêmio recebido no bolão', fmt_brl(total_premio)),
+    ('2. Prêmio dividido por ' + str(num_participantes) + ' participantes (valor por pessoa)', fmt_brl(quociente)),
+    ('3. Parte do prêmio que cabe aos ' + str(num_pagantes) + ' participantes pagantes', fmt_brl(valor_pagantes)),
+    ('4. Valor bruto (total investido) do bolão que terminou', fmt_brl(valor_bruto_anterior)),
+    ('5. Diferença a dividir entre os pagantes (item 4 − item 3)', ('+ ' if diferenca >= 0 else '− ') + fmt_brl(abs(diferenca))),
+]
+for rotulo, valor in passos:
+    linhas_rotulo = quebrar_texto(rotulo, CONTENT_W - 55*mm, _font, 9)
+    altura_linha = max(len(linhas_rotulo), 1) * 4.6*mm + 3*mm
+    c.setFont(_font, 9)
+    c.setFillColor(COR_TEXTO)
+    for j, linha in enumerate(linhas_rotulo):
+        c.drawString(MARGIN, y - 4*mm - j*4.6*mm, linha)
+    c.setFont(_font_bold, 9.5)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawRightString(MARGIN + CONTENT_W, y - 4*mm, valor)
+    y -= altura_linha
+    c.setStrokeColor(COR_CINZA_BORDA)
+    c.setLineWidth(0.4)
+    c.line(MARGIN, y + 2*mm, MARGIN + CONTENT_W, y + 2*mm)
+
+y -= 6*mm
+
+# Resultado final, em destaque
+cor_final = COR_VERMELHO if parcela_por_pessoa >= 0 else COR_VERDE
+fundo_final = COR_VERMELHO_LIGHT if parcela_por_pessoa >= 0 else COR_VERDE_LIGHT
+c.setFillColor(fundo_final)
+c.roundRect(MARGIN, y - 26*mm, CONTENT_W, 26*mm, 3*mm, fill=1, stroke=0)
+rotulo_final = ('Valor da parcela de cada um dos ' + str(num_pagantes) + ' participantes pagantes, para o próximo bolão'
+                if parcela_por_pessoa >= 0 else
+                'Crédito a favor de cada um dos ' + str(num_pagantes) + ' participantes pagantes, no próximo bolão')
+c.setFont(_font_bold, 10)
+c.setFillColor(cor_final)
+for j, linha in enumerate(quebrar_texto(rotulo_final, CONTENT_W - 10*mm, _font_bold, 10)):
+    c.drawString(MARGIN + 5*mm, y - 7*mm - j*4.8*mm, linha)
+c.setFont(_font_bold, 20)
+c.drawString(MARGIN + 5*mm, y - 21*mm, fmt_brl(abs(parcela_por_pessoa)))
+y -= 26*mm + 8*mm
+
+nota = ('Essa previsão vale caso o grupo decida continuar com o bolão, com o mesmo número de ' +
+        'participantes. Se alguém desistir ou entrar um novo participante, o valor da parcela de ' +
+        'cada um precisa ser recalculado.')
+c.setFont(_font, 8)
+c.setFillColor(COR_SUBTEXTO)
+for linha in quebrar_texto(nota, CONTENT_W, _font, 8):
+    c.drawString(MARGIN, y, linha)
+    y -= 4*mm
+
+c.setStrokeColor(COR_CINZA_BORDA)
+c.setLineWidth(0.5)
+c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
+c.setFont(_font, 7)
+c.setFillColor(COR_SUBTEXTO)
+c.drawString(MARGIN, 7*mm, 'VCVL -- gerado automaticamente no fechamento do bolão')
+c.drawRightString(PW - MARGIN, 7*mm, 'Página 1 de 1')
+
+c.save()
+print('OK')
+"""
+
 
 # ── Mapeamento de modalidade → script ─────────────────────────────────────────
 
@@ -2947,6 +3168,47 @@ def resumo_bolao_pdf():
                 mimetype='application/pdf',
                 as_attachment=True,
                 download_name='resumo-bolao.pdf'
+            )
+        finally:
+            for p in [tmp_json_path, tmp_py_path]:
+                try: os.unlink(p)
+                except: pass
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/proximo-bolao-pdf', methods=['POST'])
+def proximo_bolao_pdf():
+    try:
+        body = request.get_json()
+        if not body:
+            return jsonify({'erro': 'Payload vazio'}), 400
+
+        script_code = SCRIPTS.get('proximo_bolao', '')
+
+        with tempfile.NamedTemporaryFile(suffix='.json', delete=False, mode='w', encoding='utf-8') as tmp_json:
+            json.dump(body, tmp_json, ensure_ascii=False)
+            tmp_json_path = tmp_json.name
+
+        with tempfile.NamedTemporaryFile(suffix='.py', delete=False, mode='w', encoding='utf-8') as tmp_py:
+            tmp_py.write(script_code)
+            tmp_py_path = tmp_py.name
+
+        tmp_pdf_path = tmp_json_path.replace('.json', '.pdf')
+
+        try:
+            result = subprocess.run(
+                [sys.executable, tmp_py_path, tmp_json_path, tmp_pdf_path],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode != 0:
+                return jsonify({'erro': 'Erro ao gerar PDF', 'detalhe': result.stderr}), 500
+
+            return send_file(
+                tmp_pdf_path,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name='proximo-bolao.pdf'
             )
         finally:
             for p in [tmp_json_path, tmp_py_path]:
