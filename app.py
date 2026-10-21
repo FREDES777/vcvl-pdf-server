@@ -294,9 +294,8 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
     rw = (elW / 2) * SCALE
     rh = (elH / 2) * SCALE
     n_jogos   = len(combos_pag)
-    jogo_marcador = min(len(combos_pag), 3)
-    marcador_idx = jogo_marcador - 1
-    ultima_y  = lin_y_base[5] + jogo_oy(jogo_marcador) + offsetYJogo[marcador_idx]
+    marcador_idx = 2
+    ultima_y  = lin_y_base[5] + jogo_oy(3) + offsetYJogo[marcador_idx]
 
     mdz_idx = dez_por_aposta - 6
     if 0 <= mdz_idx < len(mdz_pos_x):
