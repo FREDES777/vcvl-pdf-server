@@ -62,6 +62,7 @@ spr_offset_y = data.get('sprOffsetY', 0)
 PW = 82.0 * mm
 PH = 186.0 * mm
 SCALE = mm / (578 / 82.0)
+offsetY += data.get('offsetLoteMm', 0) / (SCALE / mm)
 
 BOLHAS = {
   1:(322,243),2:(322,273),3:(322,300),4:(322,326),5:(322,353),
@@ -229,6 +230,9 @@ jogo3_base     = data.get('jogo3Base', 370)
 PW = 82.0 * mm
 PH = 186.0 * mm
 SCALE = mm / (578 / 82.0)
+offset_lote_px = data.get('offsetLoteMm', 0) / (SCALE / mm)
+offsetY += offset_lote_px
+offsetYJogo = [valor + offset_lote_px for valor in offsetYJogo]
 
 def get_col(dez): return (dez - 1) % 10
 def get_lin(dez): return (dez - 1) // 10
@@ -294,6 +298,7 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
     rw = (elW / 2) * SCALE
     rh = (elH / 2) * SCALE
     n_jogos   = len(combos_pag)
+    # O marcador do rodapé fica fixo abaixo do jogo 3, mesmo na última página incompleta.
     marcador_idx = 2
     ultima_y  = lin_y_base[5] + jogo_oy(3) + offsetYJogo[marcador_idx]
 
@@ -385,6 +390,7 @@ jogo3_base     = data.get('jogo3Base', 448)
 PW = 86.4 * mm
 PH = 187.3 * mm
 SCALE = mm / (578 / 86.4)
+offsetY += data.get('offsetLoteMm', 0) / (SCALE / mm)
 
 def get_col(dez): return (dez - 1) % 10
 def get_lin(dez): return (dez - 1) // 10
@@ -1151,6 +1157,7 @@ jogo2_base     = data.get('jogo2Base', 445)
 PW = 77.7 * mm
 PH = 169.3 * mm
 SCALE = mm / (578 / 77.7)
+offsetY += data.get('offsetLoteMm', 0) / (SCALE / mm)
 
 
 def get_col(dez): return (dez - 1) % 10
@@ -1284,6 +1291,7 @@ hdr_r, hdr_g, hdr_b = hex_to_rgb(header_color_hex)
 PW = 82.0 * mm
 PH = 186.0 * mm
 SCALE = mm / (578 / 82.0)
+offsetY += data.get('offsetLoteMm', 0) / (SCALE / mm)
 
 BOLHAS = {
   1:(322,243),2:(322,273),3:(322,300),4:(322,326),5:(322,353),
