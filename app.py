@@ -185,15 +185,18 @@ data = json.loads(open(sys.argv[1], encoding='utf-8').read())
 out  = sys.argv[2]
 
 combinacoes    = data['combinacoes']
-offsetX        = data.get('offsetX', 0) - 4  # DELTA_X calibrado
+offsetX        = data.get('offsetX', 0)
 offsetY        = data.get('offsetY', 0)
 espLinha       = data.get('espLinha', 0)
 colOffset      = data.get('colOffset', [0]*10)
+offsetXJogo    = data.get('offsetXJogo', [offsetX]*3)
+offsetYJogo    = data.get('offsetYJogo', [offsetY]*3)
+colOffsetJogo  = data.get('colOffsetJogo', [colOffset]*3)
 linhaOffset    = data.get('linhaOffset',  [0]*6)
 linhaOffset2   = data.get('linhaOffset2', linhaOffset)
 linhaOffset3   = data.get('linhaOffset3', linhaOffset)
-gapJogo12      = data.get('gapJogo12', 0) - 22  # DELTA_GAP12 calibrado
-gapJogo23      = data.get('gapJogo23', 0) + 39  # DELTA_GAP23 calibrado
+gapJogo12      = data.get('gapJogo12', 0)
+gapJogo23      = data.get('gapJogo23', 0)
 elW            = data.get('elW', 11)
 elH            = data.get('elH', 8)
 resumo         = data.get('resumo', '')
@@ -208,6 +211,7 @@ total_pag      = data.get('totalPaginas', 1)
 pagina_inicio  = data.get('paginaInicio', 0)
 dez_por_aposta = data.get('dezPorAposta', 6)
 mdz_pos_x      = data.get('mdzPosX', [0, 45, 90, 135, 180, 225, 270, 315, 360, 405])
+mdz_base_x     = data.get('mdzBaseX', [0]*10)
 mdz_offset_x   = data.get('mdzOffsetX', 0)
 mdz_offset_y   = data.get('mdzOffsetY', 0)
 teimosinha     = data.get('teimosinha', 0)
@@ -270,13 +274,17 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
 
     for j_idx, combo in enumerate(combos_pag):
         jogo = j_idx + 1
+        jogo_idx = jogo - 1
         oy   = jogo_oy(jogo)
+        ox_jogo = offsetXJogo[jogo_idx]
+        oy_jogo = offsetYJogo[jogo_idx]
+        col_offset_jogo = colOffsetJogo[jogo_idx]
         lo   = linhaOffset if jogo == 1 else (linhaOffset2 if jogo == 2 else linhaOffset3)
         for dez in combo:
             col   = get_col(dez)
             lin   = get_lin(dez)
-            cx_px = col_x_base[col] + offsetX + colOffset[col]
-            cy_px = lin_y_base[lin] + oy + offsetY + lin * espLinha + lo[lin]
+            cx_px = col_x_base[col] + ox_jogo + col_offset_jogo[col]
+            cy_px = lin_y_base[lin] + oy + oy_jogo + lin * espLinha + lo[lin]
             cx_pt = cx_px * SCALE
             cy_pt = PH - cy_px * SCALE
             rw = (elW / 2) * SCALE
@@ -286,11 +294,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
     rw = (elW / 2) * SCALE
     rh = (elH / 2) * SCALE
     n_jogos   = len(combos_pag)
-    ultima_y  = lin_y_base[5] + jogo_oy(3) + offsetY  # marcador fixo no bloco 3, independente de quantos jogos
+    jogo_marcador = min(len(combos_pag), 3)
+    marcador_idx = jogo_marcador - 1
+    ultima_y  = lin_y_base[5] + jogo_oy(jogo_marcador) + offsetYJogo[marcador_idx]
 
     mdz_idx = dez_por_aposta - 6
     if 0 <= mdz_idx < len(mdz_pos_x):
-        mdz_bx = col_x_base[0] + offsetX + colOffset[0] + mdz_offset_x + mdz_pos_x[mdz_idx]
+        mdz_bx = col_x_base[mdz_idx] + offsetXJogo[marcador_idx] + colOffsetJogo[marcador_idx][mdz_idx] + mdz_offset_x + mdz_base_x[mdz_idx]
         mdz_by = ultima_y + 55 + mdz_offset_y
         cx_pt  = mdz_bx * SCALE
         cy_pt  = PH - mdz_by * SCALE
@@ -299,7 +309,7 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
     tei_opcoes = [2, 4, 8]
     if teimosinha > 0 and teimosinha in tei_opcoes:
         tei_idx = tei_opcoes.index(teimosinha)
-        tei_bx  = col_x_base[0] + offsetX + colOffset[0] + spr_offset_x + tei_pos_x[tei_idx]
+        tei_bx  = col_x_base[0] + offsetXJogo[marcador_idx] + colOffsetJogo[marcador_idx][0] + spr_offset_x + tei_pos_x[tei_idx]
         tei_by  = ultima_y + 213 + spr_offset_y
         cx_pt   = tei_bx * SCALE
         cy_pt   = PH - tei_by * SCALE
