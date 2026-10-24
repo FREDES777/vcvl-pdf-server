@@ -1561,6 +1561,7 @@ data = json.loads(open(sys.argv[1], encoding='utf-8').read())
 out  = sys.argv[2]
 
 modalidade       = data.get('modalidade', '')
+tipo_bolao       = data.get('tipo_bolao', '')
 concurso         = data.get('concurso', {})
 arquivo          = data.get('arquivo', '')
 id_jogo          = data.get('idJogo', '')
@@ -1630,8 +1631,10 @@ c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
 c.setViewerPreference('PrintScaling', 'None')
 
 # ── CABECALHO ────────────────────────────────────────────────────────────────
+eh_mega_ou_quina = modalidade in ('megasena', 'quina')
+altura_cabecalho = 40 if eh_mega_ou_quina else 30
 c.setFillColor(COR_VERDE)
-c.rect(0, PH - 30*mm, PW, 30*mm, fill=1, stroke=0)
+c.rect(0, PH - altura_cabecalho*mm, PW, altura_cabecalho*mm, fill=1, stroke=0)
 c.setFont(_font_bold, 16)
 c.setFillColor(COR_BRANCO)
 c.drawString(M, PH - 13*mm, 'VCVL -- Verificador e Combinador de Loterias')
@@ -1641,11 +1644,17 @@ c.setFont(_font, 8)
 c.setFillColor(colors.HexColor('#c8e6c9'))
 c.drawRightString(PW - M, PH - 13*mm, 'Concurso N. ' + str(num_concurso))
 dia_sem = parse_dia(str(data_concurso))
-c.drawRightString(PW - M, PH - 20*mm, 'Data: ' + dia_sem + ' ' + str(data_concurso))
-if horario_envio:
+c.drawRightString(PW - M, PH - 20*mm, ('Data do sorteio: ' if eh_mega_ou_quina else 'Data: ') + dia_sem + ' ' + str(data_concurso))
+if eh_mega_ou_quina:
+    nome_tipo_bolao = {'comum': 'Comum', 'especial': 'Especial'}.get(tipo_bolao, tipo_bolao or 'Não informado')
+    c.drawString(M, PH - 29*mm, 'Tipo do bolão: ' + str(nome_tipo_bolao))
+    if horario_envio:
+        c.drawRightString(PW - M, PH - 27*mm, 'Conferido as ' + str(horario_envio))
+    c.drawRightString(PW - M, PH - 34*mm, 'ID do arquivo TXT: ' + str(id_jogo or 'Não identificado'))
+elif horario_envio:
     c.drawRightString(PW - M, PH - 26*mm, 'Enviado as ' + str(horario_envio))
 
-y = PH - 34*mm
+y = PH - (altura_cabecalho + 4)*mm
 
 # ── NUMEROS SORTEADOS ────────────────────────────────────────────────────────
 c.setFillColor(COR_VERDE_LIGHT)
@@ -1671,7 +1680,10 @@ y -= 20*mm
 # ── INFO DO JOGO ─────────────────────────────────────────────────────────────
 c.setFont(_font, 8)
 c.setFillColor(COR_SUB)
-c.drawString(M, y, 'Arquivo: ' + str(arquivo) + '   |   ID: ' + str(id_jogo) + '   |   Total de combinacoes: ' + str(total_comb))
+if eh_mega_ou_quina:
+    c.drawString(M, y, 'Arquivo: ' + str(arquivo) + '   |   Total de combinacoes: ' + str(total_comb))
+else:
+    c.drawString(M, y, 'Arquivo: ' + str(arquivo) + '   |   ID: ' + str(id_jogo) + '   |   Total de combinacoes: ' + str(total_comb))
 y -= 8*mm
 
 # ── TABELA DE RESULTADOS ─────────────────────────────────────────────────────
@@ -3027,6 +3039,231 @@ print('OK')
 """
 
 
+SCRIPTS["acumulado"] = """\
+# -*- coding: utf-8 -*-
+import sys, json, os
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+_font_paths = [
+    'C:/Windows/Fonts/arial.ttf',
+    'C:/Windows/Fonts/Arial.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+]
+_font_bold_paths = [
+    'C:/Windows/Fonts/arialbd.ttf',
+    'C:/Windows/Fonts/ArialBD.ttf',
+    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+]
+_font = 'Helvetica'
+_font_bold = 'Helvetica-Bold'
+for _fp in _font_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('RBFont', _fp))
+            _font = 'RBFont'
+        except: pass
+        break
+for _fp in _font_bold_paths:
+    if os.path.exists(_fp):
+        try:
+            pdfmetrics.registerFont(TTFont('RBFontBold', _fp))
+            _font_bold = 'RBFontBold'
+        except: pass
+        break
+
+data = json.loads(open(sys.argv[1], encoding='utf-8').read())
+out  = sys.argv[2]
+
+nome_modalidade = data.get('nome_modalidade', '')
+cor_hex         = data.get('cor', '#1b7a1b')
+num_concurso    = data.get('num_concurso', '')
+data_concurso   = data.get('data_concurso', '')
+num_proximo     = data.get('num_proximo', '')
+data_proximo    = data.get('data_proximo', '')
+dia_semana      = data.get('dia_semana', '')
+valor_estimado  = data.get('valor_estimado', 0)
+site            = data.get('site', 'www.vcvlcombinacoes.com.br')
+
+def fmt_brl(v):
+    try:
+        return 'R$ {:,.2f}'.format(float(v)).replace(',','X').replace('.', ',').replace('X','.')
+    except:
+        return 'R$ 0,00'
+
+def clarear(hex_cor, fator):
+    h = hex_cor.lstrip('#')
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    r = int(r + (255 - r) * fator); g = int(g + (255 - g) * fator); b = int(b + (255 - b) * fator)
+    return colors.Color(r / 255.0, g / 255.0, b / 255.0)
+
+def escurecer(hex_cor, fator):
+    h = hex_cor.lstrip('#')
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return colors.Color(r * (1 - fator) / 255.0, g * (1 - fator) / 255.0, b * (1 - fator) / 255.0)
+
+PW = 210 * mm
+PH = 297 * mm
+MARGIN = 14 * mm
+CONTENT_W = PW - 2 * MARGIN
+
+COR          = colors.HexColor(cor_hex)
+COR_ESCURA   = escurecer(cor_hex, 0.35)
+COR_CLARA    = clarear(cor_hex, 0.88)
+COR_OURO     = colors.HexColor('#ffc107')
+COR_OURO_ESC = colors.HexColor('#9a6b00')
+COR_TEXTO    = colors.HexColor('#1a1a1a')
+COR_SUBTEXTO = colors.HexColor('#757575')
+COR_BORDA    = colors.HexColor('#e0e0e0')
+COR_BRANCO   = colors.white
+
+# Cores claras (Lotomania, Super Sete, Dia de Sorte): o dourado some no fundo,
+# entao o "ACUMULADA!!!" vai em branco e o nome da modalidade em tom escuro.
+_h = cor_hex.lstrip('#')
+_lum = (0.299 * int(_h[0:2], 16) + 0.587 * int(_h[2:4], 16) + 0.114 * int(_h[4:6], 16)) / 255.0
+COR_FUNDO_CLARO = _lum > 0.5
+COR_NOME_CAB  = escurecer(cor_hex, 0.6) if COR_FUNDO_CLARO else COR_BRANCO
+COR_ACUM_CAB  = COR_BRANCO if COR_FUNDO_CLARO else COR_OURO
+COR_SOMBRA_CAB = escurecer(cor_hex, 0.45) if COR_FUNDO_CLARO else COR_ESCURA
+COR_LINHA_CAB = escurecer(cor_hex, 0.55) if COR_FUNDO_CLARO else clarear(cor_hex, 0.82)
+
+c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+c.setViewerPreference('PrintScaling', 'None')
+c.setTitle(nome_modalidade + ' acumulada - concurso ' + str(num_proximo))
+
+def texto_que_cabe(texto, fonte, tamanho_max, largura_max):
+    tam = tamanho_max
+    while tam > 8 and c.stringWidth(texto, fonte, tam) > largura_max:
+        tam -= 1
+    return tam
+
+def centro(texto, fonte, tam, y, cor):
+    c.setFont(fonte, tam)
+    c.setFillColor(cor)
+    c.drawCentredString(PW / 2, y, texto)
+
+# -- CABECALHO: faixa na cor da modalidade com "bolas" decorativas -----------
+ALT_CAB = 108 * mm
+c.setFillColor(COR_ESCURA)
+c.rect(0, PH - ALT_CAB, PW, ALT_CAB, fill=1, stroke=0)
+c.setFillColor(COR)
+c.rect(0, PH - ALT_CAB + 2.5*mm, PW, ALT_CAB - 2.5*mm, fill=1, stroke=0)
+
+c.saveState()
+c.setFillColor(COR_BRANCO)
+for (bx, by, br, alfa) in [(18, 24, 16, 0.10), (192, 32, 22, 0.08), (178, 90, 11, 0.12),
+                           (32, 94, 8, 0.12), (104, 14, 5, 0.10), (152, 62, 5, 0.14),
+                           (56, 60, 4, 0.14), (8, 72, 6, 0.10), (203, 99, 7, 0.08)]:
+    c.setFillAlpha(alfa)
+    c.circle(bx*mm, PH - by*mm, br*mm, fill=1, stroke=0)
+c.restoreState()
+
+c.setFont(_font_bold, 8.5)
+c.setFillColor(COR_LINHA_CAB if COR_FUNDO_CLARO else clarear(cor_hex, 0.7))
+c.drawString(MARGIN, PH - 10*mm, 'VCVL -- Verificador e Combinador de Loterias')
+c.drawRightString(PW - MARGIN, PH - 10*mm, 'AVISO DE PRÊMIO ACUMULADO')
+
+# Selo dourado
+selo = 'ALERTA DE PRÊMIO'
+c.setFont(_font_bold, 10)
+sw = c.stringWidth(selo, _font_bold, 10) + 14*mm
+c.setFillColor(COR_OURO)
+c.roundRect((PW - sw) / 2, PH - 29*mm, sw, 9*mm, 4.5*mm, fill=1, stroke=0)
+centro(selo, _font_bold, 10, PH - 25.8*mm, COR_TEXTO)
+
+nome_up = nome_modalidade.upper()
+tam_nome = texto_que_cabe(nome_up, _font_bold, 46, CONTENT_W)
+if not COR_FUNDO_CLARO:
+    centro(nome_up, _font_bold, tam_nome, PH - 52*mm - 0.9*mm, COR_ESCURA)
+centro(nome_up, _font_bold, tam_nome, PH - 52*mm, COR_NOME_CAB)
+
+acum = 'ACUMULADA!!!'
+tam_acum = texto_que_cabe(acum, _font_bold, 60, CONTENT_W)
+centro(acum, _font_bold, tam_acum, PH - 77*mm - 1.2*mm, COR_SOMBRA_CAB)
+centro(acum, _font_bold, tam_acum, PH - 77*mm, COR_ACUM_CAB)
+
+linha_conc = 'Ninguém acertou o prêmio principal do concurso Nº ' + str(num_concurso)
+if data_concurso:
+    linha_conc += '  (' + str(data_concurso) + ')'
+centro(linha_conc, _font, texto_que_cabe(linha_conc, _font, 11, CONTENT_W), PH - 93*mm, COR_LINHA_CAB)
+
+y = PH - ALT_CAB - 12*mm
+
+# -- PREMIO ESTIMADO ----------------------------------------------------------
+ALT_PREMIO = 50 * mm
+c.setFillColor(colors.HexColor('#fff8e1'))
+c.setStrokeColor(COR_OURO)
+c.setLineWidth(2.2)
+c.roundRect(MARGIN, y - ALT_PREMIO, CONTENT_W, ALT_PREMIO, 5*mm, fill=1, stroke=1)
+centro('PRÊMIO ESTIMADO PARA O PRÓXIMO CONCURSO', _font_bold, 11, y - 12*mm, COR_OURO_ESC)
+valor_txt = fmt_brl(valor_estimado)
+tam_valor = texto_que_cabe(valor_txt, _font_bold, 48, CONTENT_W - 16*mm)
+centro(valor_txt, _font_bold, tam_valor, y - 32*mm, COR_ESCURA)
+centro('valor divulgado pela Caixa', _font, 8.5, y - 42*mm, COR_SUBTEXTO)
+y -= ALT_PREMIO + 9*mm
+
+# -- PROXIMO CONCURSO + DATA --------------------------------------------------
+card_w = (CONTENT_W - 6*mm) / 2
+card_h = 38*mm
+cards = [
+    ('PRÓXIMO CONCURSO', 'Nº ' + str(num_proximo), nome_modalidade),
+    ('DATA DO SORTEIO', str(data_proximo), str(dia_semana)),
+]
+for i, (rotulo, valor, sub) in enumerate(cards):
+    x = MARGIN + i * (card_w + 6*mm)
+    c.setFillColor(COR_CLARA)
+    c.roundRect(x, y - card_h, card_w, card_h, 4*mm, fill=1, stroke=0)
+    c.setFillColor(COR)
+    c.rect(x, y - card_h + 4*mm, 2.5*mm, card_h - 8*mm, fill=1, stroke=0)
+    cx = x + card_w / 2
+    c.setFont(_font_bold, 9)
+    c.setFillColor(COR_SUBTEXTO)
+    c.drawCentredString(cx, y - 10*mm, rotulo)
+    tv = texto_que_cabe(valor, _font_bold, 30, card_w - 10*mm)
+    c.setFont(_font_bold, tv)
+    c.setFillColor(COR_ESCURA)
+    c.drawCentredString(cx, y - 23*mm, valor)
+    ts = texto_que_cabe(sub, _font_bold, 14, card_w - 10*mm)
+    c.setFont(_font_bold, ts)
+    c.setFillColor(COR)
+    c.drawCentredString(cx, y - 32*mm, sub)
+y -= card_h + 10*mm
+
+# -- CHAMADA ------------------------------------------------------------------
+ALT_CTA = 34*mm
+c.setFillColor(COR_ESCURA)
+c.roundRect(MARGIN, y - ALT_CTA, CONTENT_W, ALT_CTA, 4*mm, fill=1, stroke=0)
+centro('Prepare suas apostas com antecedência!', _font_bold, 15, y - 11*mm, COR_OURO)
+frase = 'Gere combinações com filtros estatísticos e fechamentos no VCVL'
+centro(frase, _font, texto_que_cabe(frase, _font, 11, CONTENT_W - 12*mm), y - 19*mm, COR_BRANCO)
+centro(site, _font_bold, 13, y - 28*mm, COR_BRANCO)
+y -= ALT_CTA + 8*mm
+
+# -- NOTA ---------------------------------------------------------------------
+nota1 = 'O prêmio estimado é divulgado pela Caixa e pode mudar até o sorteio, conforme a arrecadação.'
+nota2 = 'Aposte somente em lotéricas ou nos canais oficiais da Caixa. Jogue com responsabilidade -- proibido para menores de 18 anos.'
+for n in (nota1, nota2):
+    centro(n, _font, texto_que_cabe(n, _font, 8, CONTENT_W), y, COR_SUBTEXTO)
+    y -= 4.5*mm
+
+c.setStrokeColor(COR_BORDA)
+c.setLineWidth(0.5)
+c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
+c.setFont(_font, 7)
+c.setFillColor(COR_SUBTEXTO)
+c.drawString(MARGIN, 7*mm, 'VCVL -- aviso automático de prêmio acumulado (você pode desligar em Minha Conta)')
+c.drawRightString(PW - MARGIN, 7*mm, 'Página 1 de 1')
+
+c.save()
+print('OK')
+"""
+
+
 # ── Mapeamento de modalidade → script ─────────────────────────────────────────
 
 def get_script_bilhete(modalidade):
@@ -3262,6 +3499,47 @@ def proximo_bolao_pdf():
                 mimetype='application/pdf',
                 as_attachment=True,
                 download_name='proximo-bolao.pdf'
+            )
+        finally:
+            for p in [tmp_json_path, tmp_py_path]:
+                try: os.unlink(p)
+                except: pass
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/acumulado-pdf', methods=['POST'])
+def acumulado_pdf():
+    try:
+        body = request.get_json()
+        if not body:
+            return jsonify({'erro': 'Payload vazio'}), 400
+
+        script_code = SCRIPTS.get('acumulado', '')
+
+        with tempfile.NamedTemporaryFile(suffix='.json', delete=False, mode='w', encoding='utf-8') as tmp_json:
+            json.dump(body, tmp_json, ensure_ascii=False)
+            tmp_json_path = tmp_json.name
+
+        with tempfile.NamedTemporaryFile(suffix='.py', delete=False, mode='w', encoding='utf-8') as tmp_py:
+            tmp_py.write(script_code)
+            tmp_py_path = tmp_py.name
+
+        tmp_pdf_path = tmp_json_path.replace('.json', '.pdf')
+
+        try:
+            result = subprocess.run(
+                [sys.executable, tmp_py_path, tmp_json_path, tmp_pdf_path],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode != 0:
+                return jsonify({'erro': 'Erro ao gerar PDF', 'detalhe': result.stderr}), 500
+
+            return send_file(
+                tmp_pdf_path,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name='acumulado.pdf'
             )
         finally:
             for p in [tmp_json_path, tmp_py_path]:
