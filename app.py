@@ -2394,7 +2394,27 @@ COR_SUBTEXTO       = colors.HexColor('#757575')
 COR_BRANCO         = colors.white
 COR_ROXO           = colors.HexColor('#6a1b9a')
 
-c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+class CanvasNumerado(pdfcanvas.Canvas):
+    # receita do ReportLab: guarda o estado de cada pagina e so desenha o
+    # "Pagina X de Y" no save, quando o total ja e' conhecido
+    def __init__(self, *args, **kwargs):
+        pdfcanvas.Canvas.__init__(self, *args, **kwargs)
+        self._estados_paginas = []
+    def showPage(self):
+        self._estados_paginas.append(dict(self.__dict__))
+        self._startPage()
+    def save(self):
+        self._estados_paginas.append(dict(self.__dict__))
+        total = len(self._estados_paginas)
+        for estado in self._estados_paginas:
+            self.__dict__.update(estado)
+            self.setFont(_font, 7)
+            self.setFillColor(COR_SUBTEXTO)
+            self.drawRightString(PW - MARGIN, 7*mm, 'Pagina ' + str(self._pageNumber) + ' de ' + str(total))
+            pdfcanvas.Canvas.showPage(self)
+        pdfcanvas.Canvas.save(self)
+
+c = CanvasNumerado(out, pagesize=(PW, PH))
 c.setViewerPreference('PrintScaling', 'None')
 
 pag_atual = [1]
@@ -2424,7 +2444,6 @@ def rodape(pag_num, total_pags):
     c.setLineWidth(0.5)
     c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
     c.drawString(MARGIN, 7*mm, 'VCVL -- Resumo gerado automaticamente no fechamento do bolao')
-    c.drawRightString(PW - MARGIN, 7*mm, 'Pagina ' + str(pag_num) + ' de ' + str(total_pags))
 
 def quebrar_se_precisar(y, altura_necessaria):
     if y - altura_necessaria < 15*mm:
@@ -2475,9 +2494,9 @@ def desenhar_combinacoes_com_acertos(y):
     c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Combinações do bolão que fizeram pelo menos 1 ponto -- ' + nome_mod)
     y -= 9*mm
 
-    passo_num = 5.4*mm
-    w_idx = 10*mm
-    w_rot = 20*mm
+    passo_num = c.stringWidth('00', _font_bold, 8) + 2.4*mm
+    w_idx = c.stringWidth('#' + str(len(combinacoes)).zfill(2), _font_bold, 8) + 3.5*mm
+    w_rot = c.stringWidth('20 acertos + 2T', _font_bold, 7.5) + 2*mm
     linha_h = 5*mm
 
     for r in resultados:
@@ -2506,14 +2525,17 @@ def desenhar_combinacoes_com_acertos(y):
                 rot = 'nenhum acerto' if k == 0 else (str(k) + (' acerto' if k == 1 else ' acertos'))
                 partes.append(rot + ': ' + str(qtd))
             texto_dist = '   |   '.join(partes)
+            rotulo_dist = 'Quantas combinações fizeram:'
             c.setFont(_font_bold, 7.5)
             c.setFillColor(COR_TEXTO)
-            c.drawString(MARGIN, y, 'Quantas combinacoes fizeram:')
+            c.drawString(MARGIN, y, rotulo_dist)
+            x_dist = c.stringWidth(rotulo_dist, _font_bold, 7.5) + 3*mm
+            linhas_dist = quebrar_texto(texto_dist, CONTENT_W - x_dist, _font, 7.5)
             c.setFont(_font, 7.5)
             c.setFillColor(COR_SUBTEXTO)
-            for j, linha in enumerate(quebrar_texto(texto_dist, CONTENT_W - 42*mm, _font, 7.5)):
-                c.drawString(MARGIN + 42*mm, y - j*4*mm, linha)
-            y -= max(1, len(quebrar_texto(texto_dist, CONTENT_W - 42*mm, _font, 7.5))) * 4*mm + 2*mm
+            for j, linha in enumerate(linhas_dist):
+                c.drawString(MARGIN + x_dist, y - j*4*mm, linha)
+            y -= max(1, len(linhas_dist)) * 4*mm + 2*mm
 
         if not com_acertos:
             c.setFont(_font, 8)
@@ -2555,7 +2577,7 @@ def desenhar_combinacoes_com_acertos(y):
                     bateu = (k in acertados) if ehss else (n in acertados)
                     if bateu:
                         c.setFillColor(COR_VERDE_LIGHT)
-                        c.roundRect(xn - 0.8*mm, yn - 1.2*mm, 5.2*mm, 4*mm, 1*mm, fill=1, stroke=0)
+                        c.roundRect(xn - 0.8*mm, yn - 1.2*mm, passo_num - 0.6*mm, 4*mm, 1*mm, fill=1, stroke=0)
                         c.setFont(_font_bold, 8)
                         c.setFillColor(COR_VERDE)
                     else:
