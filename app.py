@@ -2444,7 +2444,7 @@ def desenhar_cards(y):
     cor_resultado = COR_VERDE if resultado_liquido >= 0 else COR_VERMELHO
     fundo_resultado = COR_VERDE_LIGHT if resultado_liquido >= 0 else COR_VERMELHO_LIGHT
     linha2 = [
-        (fmt_brl(total_investido), 'Investido ate agora', COR_TEXTO, COR_CINZA),
+        (fmt_brl(total_investido), 'Total investido', COR_TEXTO, COR_CINZA),
         (fmt_brl(total_premio), 'Premios recebidos', COR_LARANJA, COR_LARANJA_LIGHT),
         (fmt_brl(abs(resultado_liquido)), ('Lucro' if resultado_liquido >= 0 else 'Prejuizo'), cor_resultado, fundo_resultado),
     ]
@@ -2463,44 +2463,126 @@ def desenhar_cards(y):
         y -= card_h + 3*mm
     return y
 
-def desenhar_combinacoes(y):
+def desenhar_combinacoes_com_acertos(y):
+    # So as combinacoes que fizeram pelo menos 1 ponto em cada concurso, da
+    # melhor pra pior, com os numeros acertados em destaque -- a lista
+    # completa o grupo ja conhece e nao diz nada sobre o resultado.
     y, _ = quebrar_se_precisar(y, 12*mm)
     c.setFillColor(COR_VERDE)
     c.rect(MARGIN, y - 7*mm, CONTENT_W, 7*mm, fill=1, stroke=0)
     c.setFont(_font_bold, 9)
     c.setFillColor(COR_BRANCO)
-    c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Combinacoes do Bolao -- ' + nome_mod + ' -- ' + str(len(combinacoes)) + ' combinacao(oes)')
-    y -= 7*mm
+    c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Combinações do bolão que fizeram pelo menos 1 ponto -- ' + nome_mod)
+    y -= 9*mm
 
-    eh_dia_de_sorte = modalidade == 'diadesorte'
-    col_w = CONTENT_W / 2
+    passo_num = 5.4*mm
+    w_idx = 10*mm
+    w_rot = 20*mm
     linha_h = 5*mm
-    i = 0
-    while i < len(combinacoes):
-        if y - linha_h < 15*mm:
-            rodape(pag_atual[0], '?')
-            pag_atual[0] += 1
-            y = nova_pagina()
-        for col in range(2):
-            if i >= len(combinacoes):
-                break
-            combo = combinacoes[i]
-            if eh_dia_de_sorte and isinstance(combo, dict):
-                numeros = combo.get('numeros', [])
-                mes = combo.get('mes')
-            else:
-                numeros = combo
-                mes = None
-            texto = '#' + str(i + 1).zfill(2) + '  ' + '  '.join(str(n).zfill(2) for n in numeros)
-            if mes:
-                texto += '  [Mes ' + str(mes).zfill(2) + ']'
-            x = MARGIN + col * col_w
-            c.setFont(_font, 7.5)
+
+    for r in resultados:
+        com_acertos = r.get('com_acertos') or []
+        distribuicao = r.get('distribuicao') or {}
+        sorteados = r.get('sorteados') or []
+        data_conc = r.get('data_concurso', '')
+        dia = parse_dia(data_conc)
+
+        y, _ = quebrar_se_precisar(y, 22*mm)
+        c.setFillColor(COR_AZUL_LIGHT)
+        c.rect(MARGIN, y - 7*mm, CONTENT_W, 7*mm, fill=1, stroke=0)
+        c.setFont(_font_bold, 9)
+        c.setFillColor(COR_AZUL)
+        c.drawString(MARGIN + 3*mm, y - 4.8*mm, 'Concurso N. ' + str(r.get('num_concurso', '')) + (' -- ' + dia + ' ' + str(data_conc) if data_conc else ''))
+        c.setFont(_font, 8)
+        c.drawRightString(MARGIN + CONTENT_W - 3*mm, y - 4.8*mm, 'Sorteio: ' + '  '.join(str(n).zfill(2) for n in sorteados))
+        y -= 11*mm
+
+        # Distribuicao: quantas combinacoes fizeram cada numero de acertos
+        if distribuicao:
+            chaves = sorted((int(k) for k in distribuicao.keys()), reverse=True)
+            partes = []
+            for k in chaves:
+                qtd = distribuicao.get(str(k), distribuicao.get(k, 0))
+                rot = 'nenhum acerto' if k == 0 else (str(k) + (' acerto' if k == 1 else ' acertos'))
+                partes.append(rot + ': ' + str(qtd))
+            texto_dist = '   |   '.join(partes)
+            c.setFont(_font_bold, 7.5)
             c.setFillColor(COR_TEXTO)
-            c.drawString(x + 1.5*mm, y - 3.5*mm, texto)
-            i += 1
-        y -= linha_h
-    return y - 3*mm
+            c.drawString(MARGIN, y, 'Quantas combinacoes fizeram:')
+            c.setFont(_font, 7.5)
+            c.setFillColor(COR_SUBTEXTO)
+            for j, linha in enumerate(quebrar_texto(texto_dist, CONTENT_W - 42*mm, _font, 7.5)):
+                c.drawString(MARGIN + 42*mm, y - j*4*mm, linha)
+            y -= max(1, len(quebrar_texto(texto_dist, CONTENT_W - 42*mm, _font, 7.5))) * 4*mm + 2*mm
+
+        if not com_acertos:
+            c.setFont(_font, 8)
+            c.setFillColor(COR_SUBTEXTO)
+            c.drawString(MARGIN, y - 3.5*mm, 'Nenhuma combinacao do bolao fez pontos neste concurso.')
+            y -= 9*mm
+            continue
+
+        maior = max(len(item.get('numeros') or []) + len(item.get('trevos') or []) for item in com_acertos)
+        duas_colunas = maior <= 8
+        col_w = CONTENT_W / 2 if duas_colunas else CONTENT_W
+        por_linha = max(1, int((col_w - w_idx - w_rot - 2*mm) // passo_num))
+
+        def altura_item(item):
+            n = len(item.get('numeros') or [])
+            return max(1, -(-n // por_linha)) * 4.4*mm + 0.6*mm
+
+        i = 0
+        while i < len(com_acertos):
+            itens = com_acertos[i:i + (2 if duas_colunas else 1)]
+            alt = max(altura_item(it) for it in itens)
+            if y - alt < 15*mm:
+                rodape(pag_atual[0], '?')
+                pag_atual[0] += 1
+                y = nova_pagina()
+            for col, item in enumerate(itens):
+                x0 = MARGIN + col * col_w
+                numeros = item.get('numeros') or []
+                acertados = set(item.get('acertados') or [])
+                ehss = modalidade == 'supersete'
+                acertos = item.get('acertos', 0)
+                c.setFont(_font_bold, 8)
+                c.setFillColor(COR_AZUL)
+                c.drawString(x0 + 1*mm, y - 3.5*mm, '#' + str(item.get('idx', '')).zfill(2))
+                for k, n in enumerate(numeros):
+                    lin, pos = divmod(k, por_linha)
+                    xn = x0 + w_idx + pos * passo_num
+                    yn = y - 3.5*mm - lin * 4.4*mm
+                    bateu = (k in acertados) if ehss else (n in acertados)
+                    if bateu:
+                        c.setFillColor(COR_VERDE_LIGHT)
+                        c.roundRect(xn - 0.8*mm, yn - 1.2*mm, 5.2*mm, 4*mm, 1*mm, fill=1, stroke=0)
+                        c.setFont(_font_bold, 8)
+                        c.setFillColor(COR_VERDE)
+                    else:
+                        c.setFont(_font, 8)
+                        c.setFillColor(colors.HexColor('#9e9e9e'))
+                    c.drawString(xn, yn, str(n).zfill(2))
+                xr = x0 + w_idx + min(len(numeros), por_linha) * passo_num + 1*mm
+                trevos = item.get('trevos') or []
+                if trevos:
+                    c.setFont(_font, 7)
+                    c.setFillColor(COR_SUBTEXTO)
+                    c.drawString(xr, y - 3.5*mm, 'T ' + ' '.join(str(t).zfill(2) for t in trevos))
+                    xr += 13*mm
+                rot = str(acertos) + (' acerto' if acertos == 1 else ' acertos')
+                if item.get('acertos_trevos'):
+                    rot += ' + ' + str(item['acertos_trevos']) + 'T'
+                c.setFont(_font_bold, 7.5)
+                c.setFillColor(COR_VERDE if acertos >= 3 else COR_TEXTO)
+                c.drawString(xr, y - 3.5*mm, rot)
+                if item.get('bonus'):
+                    c.setFont(_font_bold, 7)
+                    c.setFillColor(COR_ROXO)
+                    c.drawString(xr, y - 7.4*mm, str(item['bonus']) + ' -- acertou!')
+            y -= alt
+            i += len(itens)
+        y -= 4*mm
+    return y - 2*mm
 
 def desenhar_concurso(y, r):
     num_conc = r.get('num_concurso', '')
@@ -2747,7 +2829,7 @@ def desenhar_premiacao_por_bilhete(y, bilhetes):
 y = nova_pagina(primeira=True)
 y = desenhar_cards(y)
 y -= 2*mm
-y = desenhar_combinacoes(y)
+y = desenhar_combinacoes_com_acertos(y)
 y -= 2*mm
 
 if resultados:
