@@ -1656,6 +1656,58 @@ elif horario_envio:
 
 y = PH - (altura_cabecalho + 4)*mm
 
+# ── DESTAQUE DE VITORIA (premio principal / 2o premio) ───────────────────────
+MAX_ACERTOS = {'lotofacil': 15, 'megasena': 6, 'quina': 5, 'duplasena': 6, 'lotomania': 20,
+               'diadesorte': 7, 'timemania': 7, 'supersete': 7}
+NOMES_DESTAQUE = {'lotofacil': 'Lotofácil', 'megasena': 'Mega-Sena', 'quina': 'Quina', 'duplasena': 'Dupla Sena',
+                  'lotomania': 'Lotomania', 'diadesorte': 'Dia de Sorte', 'timemania': 'Timemania',
+                  'supersete': 'Super Sete', 'maismilionaria': '+Milionária'}
+_todas_faixas = list(faixas or []) + list(faixas1 or []) + list(faixas2 or [])
+def _teve(acertos, trevos=None):
+    for f in _todas_faixas:
+        if f.get('acertos') == acertos and (trevos is None or f.get('trevos') == trevos) and (f.get('quantidade') or 0) > 0:
+            return True
+    return False
+if modalidade == 'maismilionaria':
+    ganhou_principal, ganhou_segundo = _teve(6, 2), _teve(6, 1)
+elif modalidade in MAX_ACERTOS:
+    ganhou_principal, ganhou_segundo = _teve(MAX_ACERTOS[modalidade]), _teve(MAX_ACERTOS[modalidade] - 1)
+else:
+    ganhou_principal = ganhou_segundo = False
+nome_destaque = NOMES_DESTAQUE.get(modalidade, modalidade)
+
+def _texto_cabe(texto, fonte, tam, largura):
+    while tam > 8 and c.stringWidth(texto, fonte, tam) > largura:
+        tam -= 0.5
+    return tam
+
+if ganhou_principal:
+    c.setFillColor(colors.HexColor('#ffd54f'))
+    c.setStrokeColor(colors.HexColor('#ff8f00'))
+    c.setLineWidth(1.5)
+    c.roundRect(M, y - 22*mm, CW, 22*mm, 3*mm, fill=1, stroke=1)
+    t1 = 'PARABÉNS, VOCÊS GANHARAM O PRÊMIO PRINCIPAL DA ' + nome_destaque.upper() + '!'
+    c.setFont(_font_bold, _texto_cabe(t1, _font_bold, 13, CW - 8*mm))
+    c.setFillColor(colors.HexColor('#4e2a00'))
+    c.drawCentredString(PW / 2, y - 9*mm, t1)
+    c.setFont(_font_bold, 16)
+    c.setFillColor(colors.HexColor('#e65100'))
+    c.drawCentredString(PW / 2, y - 17.5*mm, 'VIVAAAA!!!')
+    y -= 26*mm
+elif ganhou_segundo:
+    c.setFillColor(colors.HexColor('#e3f2fd'))
+    c.setStrokeColor(colors.HexColor('#64b5f6'))
+    c.setLineWidth(1.2)
+    c.roundRect(M, y - 17*mm, CW, 17*mm, 3*mm, fill=1, stroke=1)
+    c.setFont(_font_bold, 13)
+    c.setFillColor(colors.HexColor('#0d47a1'))
+    c.drawCentredString(PW / 2, y - 8*mm, 'PARABÉNS, VOCÊS CHEGARAM PERTO!')
+    t2 = 'Uma combinação acertou o 2º prêmio da ' + nome_destaque + '.'
+    c.setFont(_font, _texto_cabe(t2, _font, 9.5, CW - 8*mm))
+    c.setFillColor(colors.HexColor('#1565c0'))
+    c.drawCentredString(PW / 2, y - 13.5*mm, t2)
+    y -= 21*mm
+
 # ── NUMEROS SORTEADOS ────────────────────────────────────────────────────────
 c.setFillColor(COR_VERDE_LIGHT)
 c.setStrokeColor(COR_BORDA)
