@@ -2391,6 +2391,7 @@ out  = sys.argv[2]
 
 modalidade             = data.get('modalidade', '')
 nome_bolao             = data.get('nome_bolao', '')
+id_jogo                = data.get('id_jogo', '')
 num_concurso_inicio    = data.get('num_concurso_inicio', '')
 concurso_final         = data.get('concurso_final', '')
 teimosinha             = data.get('teimosinha', 0)
@@ -2486,7 +2487,7 @@ def nova_pagina(primeira=False):
     c.setFont(_font, 8)
     c.setFillColor(colors.HexColor('#c8e6c9'))
     c.drawRightString(PW - MARGIN, PH - 12*mm, 'Resumo Final do Bolao')
-    c.drawRightString(PW - MARGIN, PH - 19*mm, 'VCVL')
+    c.drawRightString(PW - MARGIN, PH - 19*mm, 'ID do arquivo: ' + str(id_jogo) if id_jogo else 'VCVL')
     return PH - 34*mm
 
 def rodape(pag_num, total_pags):
