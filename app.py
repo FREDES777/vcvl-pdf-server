@@ -3421,6 +3421,156 @@ print('OK')
 """
 
 
+SCRIPTS["adiado"] = """\
+# -*- coding: utf-8 -*-
+import sys, json
+from reportlab.pdfgen import canvas as pdfcanvas
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+import os
+_F, _FB = 'Helvetica', 'Helvetica-Bold'
+for _p in ['C:/Windows/Fonts/arial.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf']:
+    if os.path.exists(_p):
+        pdfmetrics.registerFont(TTFont('RBFont', _p))
+        _F = 'RBFont'
+        break
+for _p in ['C:/Windows/Fonts/arialbd.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf']:
+    if os.path.exists(_p):
+        pdfmetrics.registerFont(TTFont('RBFontBold', _p))
+        _FB = 'RBFontBold'
+        break
+d = json.load(open(sys.argv[1], encoding='utf-8'))
+out = sys.argv[2]
+cor_hex = d['cor']
+
+
+def rgb(h):
+    h = h.lstrip('#')
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def clarear(h, f):
+    r, g, b = rgb(h)
+    return colors.Color((r + (255 - r) * f) / 255, (g + (255 - g) * f) / 255, (b + (255 - b) * f) / 255)
+
+
+def escurecer(h, f):
+    r, g, b = rgb(h)
+    return colors.Color(r * (1 - f) / 255, g * (1 - f) / 255, b * (1 - f) / 255)
+
+
+PW, PH = 297 * mm, 210 * mm
+M = 14 * mm
+CW = PW - 2 * M
+COR, ESC, CLARA = colors.HexColor(cor_hex), escurecer(cor_hex, 0.35), clarear(cor_hex, 0.9)
+OURO, BRANCO, SUB = colors.HexColor('#ffc107'), colors.white, colors.HexColor('#757575')
+r_, g_, b_ = rgb(cor_hex)
+claro = (0.299 * r_ + 0.587 * g_ + 0.114 * b_) / 255 > 0.5
+COR_NOME = escurecer(cor_hex, 0.6) if claro else BRANCO
+COR_TIT = BRANCO if claro else OURO
+SOMBRA = escurecer(cor_hex, 0.45) if claro else ESC
+
+c = pdfcanvas.Canvas(out, pagesize=(PW, PH))
+
+
+def cabe(t, f, tam, larg):
+    while tam > 8 and c.stringWidth(t, f, tam) > larg:
+        tam -= 1
+    return tam
+
+
+def centro(t, f, tam, y, cor, x=PW / 2):
+    c.setFont(f, tam)
+    c.setFillColor(cor)
+    c.drawCentredString(x, y, t)
+
+
+# Cabecalho
+ALT = 92 * mm
+c.setFillColor(ESC)
+c.rect(0, PH - ALT, PW, ALT, fill=1, stroke=0)
+c.setFillColor(COR)
+c.rect(0, PH - ALT + 2.5 * mm, PW, ALT - 2.5 * mm, fill=1, stroke=0)
+c.saveState()
+c.setFillColor(BRANCO)
+for bx, by, br, al in [(22, 28, 18, .10), (272, 30, 24, .08), (250, 76, 11, .12), (48, 78, 8, .12),
+                       (148, 10, 5, .10), (215, 52, 5, .14), (78, 42, 4, .14), (9, 66, 6, .10)]:
+    c.setFillAlpha(al)
+    c.circle(bx * mm, PH - by * mm, br * mm, fill=1, stroke=0)
+c.restoreState()
+c.setFont(_FB, 8.5)
+c.setFillColor(COR_NOME if claro else clarear(cor_hex, 0.7))
+SITE = 'www.vcvlcombinacoes.com.br'
+c.drawString(M, PH - 9 * mm, SITE)
+c.linkURL('https://' + SITE, (M, PH - 11 * mm, M + c.stringWidth(SITE, _FB, 8.5), PH - 7 * mm), relative=0)
+c.drawRightString(PW - M, PH - 9 * mm, 'AVISO AOS PARTICIPANTES')
+
+selo = 'ATENÇÃO, GRUPO!'
+sw = c.stringWidth(selo, _FB, 10) + 14 * mm
+c.setFillColor(OURO)
+c.roundRect((PW - sw) / 2, PH - 23 * mm, sw, 9 * mm, 4.5 * mm, fill=1, stroke=0)
+centro(selo, _FB, 10, PH - 19.8 * mm, colors.HexColor('#1a1a1a'))
+
+nome = d['nome'].upper()
+t = cabe(nome, _FB, 40, CW)
+if not claro:
+    centro(nome, _FB, t, PH - 40.8 * mm, ESC)
+centro(nome, _FB, t, PH - 40 * mm, COR_NOME)
+tit = 'SORTEIO ADIADO!'
+t = cabe(tit, _FB, 62, CW)
+centro(tit, _FB, t, PH - 66.2 * mm, SOMBRA)
+centro(tit, _FB, t, PH - 65 * mm, COR_TIT)
+sub = 'Hoje, ' + d['hoje'] + ', não há sorteio.'
+centro(sub, _FB, 13, PH - 81 * mm, COR_NOME if claro else clarear(cor_hex, 0.88))
+
+# Abaixo do cabecalho: nova data a esquerda, concurso e bolao a direita
+y = PH - ALT - 9 * mm
+ALTURA_BLOCO = 62 * mm
+W_DATA = CW * 0.56
+GAP = 6 * mm
+c.setFillColor(colors.HexColor('#fff8e1'))
+c.setStrokeColor(OURO)
+c.setLineWidth(2.2)
+c.roundRect(M, y - ALTURA_BLOCO, W_DATA, ALTURA_BLOCO, 5 * mm, fill=1, stroke=1)
+cx = M + W_DATA / 2
+centro('A CAIXA ADIOU O SORTEIO PARA', _FB, 11, y - 13 * mm, colors.HexColor('#9a6b00'), cx)
+centro(d['dia_novo'], _FB, 26, y - 29 * mm, COR if not claro else ESC, cx)
+centro(d['data_nova'], _FB, 46, y - 49 * mm, ESC, cx)
+
+x2 = M + W_DATA + GAP
+W2 = CW - W_DATA - GAP
+H = (ALTURA_BLOCO - GAP) / 2
+for i, (rot, val, s) in enumerate([('CONCURSO', 'Nº ' + str(d['concurso']), d['nome']), ('BOLÃO', d['bolao'], 'continua valendo')]):
+    yc = y - i * (H + GAP)
+    c.setFillColor(CLARA)
+    c.roundRect(x2, yc - H, W2, H, 4 * mm, fill=1, stroke=0)
+    cx2 = x2 + W2 / 2
+    centro(rot, _FB, 8.5, yc - 6.5 * mm, SUB, cx2)
+    centro(val, _FB, cabe(val, _FB, 21, W2 - 10 * mm), yc - 15 * mm, ESC, cx2)
+    centro(s, _FB, 10.5, yc - 22 * mm, COR if not claro else ESC, cx2)
+y -= ALTURA_BLOCO + 6 * mm
+
+# Faixa
+AF = 20 * mm
+c.setFillColor(ESC)
+c.roundRect(M, y - AF, CW, AF, 4 * mm, fill=1, stroke=0)
+centro('Nada muda nas apostas do bolão: só a data do sorteio.', _FB, 13, y - 8.5 * mm, OURO)
+centro('O resultado sai aqui assim que o concurso for conferido.', _F, 10.5, y - 15 * mm, BRANCO)
+
+c.setStrokeColor(colors.HexColor('#e0e0e0'))
+c.setLineWidth(0.5)
+c.line(M, 10 * mm, PW - M, 10 * mm)
+c.setFont(_F, 7)
+c.setFillColor(SUB)
+c.drawString(M, 7 * mm, SITE + ' -- aviso automático. Data informada pela Caixa, sujeita a nova alteração.')
+c.save()
+print('OK')
+"""
+
+
 # ── Mapeamento de modalidade → script ─────────────────────────────────────────
 
 def get_script_bilhete(modalidade):
@@ -3697,6 +3847,47 @@ def acumulado_pdf():
                 mimetype='application/pdf',
                 as_attachment=True,
                 download_name='acumulado.pdf'
+            )
+        finally:
+            for p in [tmp_json_path, tmp_py_path]:
+                try: os.unlink(p)
+                except: pass
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+@app.route('/adiado-pdf', methods=['POST'])
+def adiado_pdf():
+    try:
+        body = request.get_json()
+        if not body:
+            return jsonify({'erro': 'Payload vazio'}), 400
+
+        script_code = SCRIPTS.get('adiado', '')
+
+        with tempfile.NamedTemporaryFile(suffix='.json', delete=False, mode='w', encoding='utf-8') as tmp_json:
+            json.dump(body, tmp_json, ensure_ascii=False)
+            tmp_json_path = tmp_json.name
+
+        with tempfile.NamedTemporaryFile(suffix='.py', delete=False, mode='w', encoding='utf-8') as tmp_py:
+            tmp_py.write(script_code)
+            tmp_py_path = tmp_py.name
+
+        tmp_pdf_path = tmp_json_path.replace('.json', '.pdf')
+
+        try:
+            result = subprocess.run(
+                [sys.executable, tmp_py_path, tmp_json_path, tmp_pdf_path],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode != 0:
+                return jsonify({'erro': 'Erro ao gerar PDF', 'detalhe': result.stderr}), 500
+
+            return send_file(
+                tmp_pdf_path,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name='sorteio-adiado.pdf'
             )
         finally:
             for p in [tmp_json_path, tmp_py_path]:
