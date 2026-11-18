@@ -115,6 +115,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         txt_bil = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
         c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, txt_bil)
+        _lk_txt = txt_bil
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0,0,0)
     for j_idx, combo in enumerate(combos_pag):
@@ -273,6 +280,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         txt_bil = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
         c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, txt_bil)
+        _lk_txt = txt_bil
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
 
@@ -431,6 +445,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         txt_bil = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
         c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, txt_bil)
+        _lk_txt = txt_bil
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
 
@@ -581,6 +602,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         txt_bil = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
         c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, txt_bil)
+        _lk_txt = txt_bil
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
 
@@ -735,6 +763,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
         for li, linha in enumerate(linhas_resumo):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag))
+        _lk_txt = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
 
@@ -957,6 +992,13 @@ for pg, combo in enumerate(combinacoes):
         y_inicio = PH - 18.5 * mm
         for li, linha in enumerate(linhas_resumo):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
+        _lk_txt = linhas_resumo[-1].strip()
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - (len(linhas_resumo) - 1) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
     rw = (elW / 2) * SCALE
@@ -1070,6 +1112,13 @@ for pg, combo in enumerate(combinacoes):
         y_inicio = PH - 19.4 * mm
         for li, linha in enumerate(linhas_resumo):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
+        _lk_txt = linhas_resumo[-1].strip()
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - (len(linhas_resumo) - 1) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
     rw = (elW / 2) * SCALE
@@ -1196,6 +1245,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
         for li, linha in enumerate(linhas_resumo):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         c.drawString(margem_x, y_inicio - len(linhas_resumo)*linha_h, 'Bilhete '+str(pg_num)+' de '+str(total_pag))
+        _lk_txt = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo)*linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
     for j_idx, combo in enumerate(combos_pag):
@@ -1344,6 +1400,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
             c.drawString(margem_x, y_inicio - li * linha_h, linha.strip())
         txt_bil = 'Bilhete ' + str(pg_num) + ' de ' + str(total_pag)
         c.drawString(margem_x, y_inicio - len(linhas_resumo) * linha_h, txt_bil)
+        _lk_txt = txt_bil
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - len(linhas_resumo) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0,0,0)
     for j_idx, combo in enumerate(combos_pag):
@@ -1500,6 +1563,13 @@ for pg in range(0, len(combinacoes), COMBOS_POR_PAG):
         y_inicio = PH - 12.0 * mm
         for li, linha_txt in enumerate(linhas_resumo):
             c.drawString(margem_x, y_inicio - li * linha_h, linha_txt.strip())
+        _lk_txt = linhas_resumo[-1].strip()
+        _lk_fn, _lk_fs = c._fontname, c._fontsize
+        _lk_x = margem_x + c.stringWidth(_lk_txt, _lk_fn, _lk_fs) + 2.5 * mm
+        if _lk_x + c.stringWidth('www.vcvlcombinacoes.com.br', _lk_fn, 6.5) <= PW - 2 * mm:
+            c.setFont(_lk_fn, 6.5)
+            c.drawString(_lk_x, y_inicio - (len(linhas_resumo) - 1) * linha_h, 'www.vcvlcombinacoes.com.br')
+            c.setFont(_lk_fn, _lk_fs)
 
     c.setFillColorRGB(0, 0, 0)
     rw = (elW / 2) * SCALE; rh = (elH / 2) * SCALE
@@ -1856,7 +1926,7 @@ def desenhar_rodape():
     c.setStrokeColor(COR_BORDA)
     c.setLineWidth(0.5)
     c.line(M, 10*mm, PW - M, 10*mm)
-    c.drawString(M, 7*mm, 'VCVL -- Relatorio gerado automaticamente')
+    c.drawString(M, 7*mm, 'VCVL -- Relatorio gerado automaticamente -- www.vcvlcombinacoes.com.br')
     c.drawRightString(PW - M, 7*mm, 'Pagina ' + str(c.getPageNumber()))
 
 def nova_pagina():
@@ -2069,7 +2139,7 @@ def rodape(pag_num, total_pags):
     c.setStrokeColor(COR_CINZA_BORDA)
     c.setLineWidth(0.5)
     c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
-    c.drawString(MARGIN, 7*mm, 'VCVL -- Relatorio gerado automaticamente em ' + agora)
+    c.drawString(MARGIN, 7*mm, 'VCVL -- Relatorio gerado automaticamente em ' + agora + ' -- www.vcvlcombinacoes.com.br')
     c.drawRightString(PW - MARGIN, 7*mm, 'Pagina ' + str(pag_num) + ' de ' + str(total_pags))
 
 # ── Cards de estatísticas ────────────────────────────────────────────────────
@@ -2496,7 +2566,7 @@ def rodape(pag_num, total_pags):
     c.setStrokeColor(COR_CINZA_BORDA)
     c.setLineWidth(0.5)
     c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
-    c.drawString(MARGIN, 7*mm, 'VCVL -- Resumo gerado automaticamente no fechamento do bolao')
+    c.drawString(MARGIN, 7*mm, 'VCVL -- Resumo gerado automaticamente no fechamento do bolao -- www.vcvlcombinacoes.com.br')
 
 def quebrar_se_precisar(y, altura_necessaria):
     if y - altura_necessaria < 15*mm:
@@ -3188,7 +3258,7 @@ c.setLineWidth(0.5)
 c.line(MARGIN, 10*mm, PW - MARGIN, 10*mm)
 c.setFont(_font, 7)
 c.setFillColor(COR_SUBTEXTO)
-c.drawString(MARGIN, 7*mm, 'VCVL -- gerado automaticamente no fechamento do bolão')
+c.drawString(MARGIN, 7*mm, 'VCVL -- gerado automaticamente no fechamento do bolão -- www.vcvlcombinacoes.com.br')
 c.drawRightString(PW - MARGIN, 7*mm, 'Página 1 de 1')
 
 c.save()
