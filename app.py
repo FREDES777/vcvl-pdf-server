@@ -1651,6 +1651,7 @@ acumulado     = concurso.get('acumulado', False)
 valor_proximo = concurso.get('valorProximo', '')
 rateios       = concurso.get('rateios', [])
 horario_envio = data.get('horario_envio', '')
+teimosinha_txt = data.get('teimosinha_txt', '')  # ex.: 'Teimosinha 01 de 24'
 
 DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
 
@@ -1710,6 +1711,18 @@ c.setFillColor(COR_BRANCO)
 c.drawString(M, PH - 13*mm, 'VCVL -- Verificador e Combinador de Loterias')
 c.setFont(_font, 10)
 c.drawString(M, PH - 21*mm, 'Resultado da Conferencia -- ' + nome_mod)
+# Selo da teimosinha ao lado do subtítulo: "TEIMOSINHA 01 DE 24"
+if teimosinha_txt:
+    _sub = 'Resultado da Conferencia -- ' + nome_mod
+    _selo = str(teimosinha_txt).upper()
+    _sx = M + c.stringWidth(_sub, _font, 10) + 4*mm
+    _sw = c.stringWidth(_selo, _font_bold, 9) + 7*mm
+    c.setFillColor(COR_BRANCO)
+    c.roundRect(_sx, PH - 23*mm, _sw, 6.4*mm, 3.2*mm, fill=1, stroke=0)
+    c.setFillColor(COR_VERDE)
+    c.setFont(_font_bold, 9)
+    c.drawCentredString(_sx + _sw / 2, PH - 21*mm, _selo)
+    c.setFillColor(COR_BRANCO)
 c.setFont(_font, 8)
 c.setFillColor(colors.HexColor('#c8e6c9'))
 c.drawRightString(PW - M, PH - 13*mm, 'Concurso N. ' + str(num_concurso))
